@@ -115,6 +115,60 @@ test('create task and update status via PATCH', async (t) => {
   });
 });
 
+test('create and approve policy change request', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/policy-change-requests', port, 'POST', {
+      policyId: 'policy-001',
+      proposedRule: '外部沟通仅可披露“仍在验证商业化路径”，禁止披露收入规模与预测值。',
+      reason: '避免多渠道披露口径不一致',
+      requestedBy: 'ops-analyst'
+    });
+    const created = JSON.parse(createRes.body);
+
+    assert.equal(createRes.status, 201);
+    assert.equal(created.status, 'pending');
+
+    const approveRes = await request(
+      `/api/policy-change-requests/${created.id}/approve`,
+      port,
+      'PATCH',
+      { status: 'approved', approvedBy: 'compliance-lead' }
+    );
+    const approved = JSON.parse(approveRes.body);
+    assert.equal(approveRes.status, 200);
+    assert.equal(approved.status, 'approved');
+    assert.equal(approved.approvedBy, 'compliance-lead');
+
+    const policiesRes = await request('/api/policies', port);
+    const policies = JSON.parse(policiesRes.body);
+    const targetPolicy = policies.find((p) => p.id === 'policy-001');
+    assert.equal(targetPolicy.changedBy, 'compliance-lead');
+    assert.equal(targetPolicy.rule, created.proposedRule);
+  });
+});
+
+test('returns 400 when approving with invalid status', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/policy-change-requests', port, 'POST', {
+      policyId: 'policy-001',
+      proposedRule: '只允许发布已公开信息，不允许给出预测数字。',
+      reason: '管控外部风险',
+      requestedBy: 'ops-analyst'
+    });
+    const created = JSON.parse(createRes.body);
+
+    const approveRes = await request(
+      `/api/policy-change-requests/${created.id}/approve`,
+      port,
+      'PATCH',
+      { status: 'pending', approvedBy: 'compliance-lead' }
+    );
+    const parsed = JSON.parse(approveRes.body);
+    assert.equal(approveRes.status, 400);
+    assert.equal(parsed.error, 'only approved status is supported for PATCH');
+  });
+});
+
 test('returns 400 for invalid json body', async (t) => {
   await withServer(t, async (port) => {
     const rawRes = await new Promise((resolve, reject) => {

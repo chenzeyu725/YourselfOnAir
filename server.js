@@ -7,7 +7,9 @@ const {
   createDocument,
   createTask,
   createPolicy,
-  updateTaskStatus
+  updateTaskStatus,
+  createPolicyChangeRequest,
+  approvePolicyChangeRequest
 } = require('./api/store');
 
 const PORT = process.env.PORT || 3000;
@@ -28,6 +30,7 @@ const GET_ROUTES = {
   '/api/documents': () => state.documents,
   '/api/tasks': () => state.tasks,
   '/api/policies': () => state.policies,
+  '/api/policy-change-requests': () => state.policyChangeRequests,
   '/api/distillation/self': () => state.distillation.self,
   '/api/distillation/expert': () => state.distillation.expert,
   '/api/provenance': () => state.distillation.provenance,
@@ -39,7 +42,8 @@ const POST_ROUTES = {
   '/api/workspaces': createWorkspace,
   '/api/documents': createDocument,
   '/api/tasks': createTask,
-  '/api/policies': createPolicy
+  '/api/policies': createPolicy,
+  '/api/policy-change-requests': createPolicyChangeRequest
 };
 
 function setSecurityHeaders(res) {
@@ -112,11 +116,22 @@ async function handleApi(req, res, reqPath) {
 
   if (req.method === 'PATCH') {
     const taskStatusMatch = reqPath.match(/^\/api\/tasks\/(task-\d+)\/status$/);
-    if (!taskStatusMatch) return false;
-    const payload = await parseJsonBody(req);
-    const updated = updateTaskStatus(taskStatusMatch[1], payload);
-    sendJson(res, updated);
-    return true;
+    if (taskStatusMatch) {
+      const payload = await parseJsonBody(req);
+      const updated = updateTaskStatus(taskStatusMatch[1], payload);
+      sendJson(res, updated);
+      return true;
+    }
+
+    const policyApproveMatch = reqPath.match(/^\/api\/policy-change-requests\/(pcr-\d+)\/approve$/);
+    if (policyApproveMatch) {
+      const payload = await parseJsonBody(req);
+      const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
+      sendJson(res, updated);
+      return true;
+    }
+
+    return false;
   }
 
   if (reqPath.startsWith('/api/')) {

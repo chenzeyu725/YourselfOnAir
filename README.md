@@ -18,6 +18,7 @@ npm run dev
 - `GET /api/documents`
 - `GET /api/tasks`
 - `GET /api/policies`
+- `GET /api/policy-change-requests`
 - `GET /api/billing`
 - `GET /api/distillation/self`
 - `GET /api/distillation/expert`
@@ -29,7 +30,9 @@ npm run dev
 - `POST /api/documents`
 - `POST /api/tasks`
 - `POST /api/policies`
+- `POST /api/policy-change-requests`
 - `PATCH /api/tasks/:taskId/status`
+- `PATCH /api/policy-change-requests/:requestId/approve`
 
 ## 测试
 

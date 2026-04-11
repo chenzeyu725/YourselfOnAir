@@ -58,6 +58,19 @@ const data = {
       changedBy: 'ops-manager'
     }
   ],
+  policyChangeRequests: [
+    {
+      id: 'pcr-001',
+      policyId: 'policy-001',
+      proposedRule: '外部沟通统一使用“项目仍在验证商业化路径”口径，不披露收入金额与时间点。',
+      reason: '统一对外话术，降低不一致披露风险',
+      status: 'approved',
+      requestedBy: 'ops-manager',
+      approvedBy: 'compliance-lead',
+      requestedAt: '2026-04-10',
+      approvedAt: '2026-04-10'
+    }
+  ],
   distillation: {
     self: {
       workMemory: {
