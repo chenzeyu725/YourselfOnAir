@@ -149,6 +149,46 @@ test('tasks endpoint supports status filter and offset pagination', async (t) =>
   });
 });
 
+test('task templates endpoint returns list', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/task-templates?sortBy=id&order=asc', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(Array.isArray(parsed), true);
+    assert.ok(parsed.length >= 2);
+    assert.equal(parsed[0].id, 'tpl-001');
+  });
+});
+
+test('create task from template via POST', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks/from-template', port, 'POST', {
+      templateId: 'tpl-001',
+      workspaceId: 'ws-001'
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(res.body);
+
+    assert.equal(res.status, 201);
+    assert.equal(created.templateId, 'tpl-001');
+    assert.equal(created.workspaceId, 'ws-001');
+    assert.equal(created.kind, 'doc');
+    assert.ok(created.prompt.includes('青云项目'));
+  });
+});
+
+test('returns 404 when creating task from unknown template', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks/from-template', port, 'POST', {
+      templateId: 'tpl-404'
+    }, { 'x-api-key': 'test-write-key' });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 404);
+    assert.equal(parsed.error, 'task template not found');
+  });
+});
+
 test('returns 400 for invalid list query params', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/tasks?limit=-1', port);

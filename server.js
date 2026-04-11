@@ -6,6 +6,7 @@ const {
   createWorkspace,
   createDocument,
   createTask,
+  createTaskFromTemplate,
   createPolicy,
   updateTaskStatus,
   createPolicyChangeRequest,
@@ -34,6 +35,7 @@ const GET_ROUTES = {
   '/api/workspaces': () => state.workspaces,
   '/api/documents': () => state.documents,
   '/api/tasks': () => state.tasks,
+  '/api/task-templates': () => state.taskTemplates,
   '/api/policies': () => state.policies,
   '/api/policy-change-requests': () => state.policyChangeRequests,
   '/api/audit-logs': () => auditLogs,
@@ -48,6 +50,7 @@ const QUERYABLE_LIST_ROUTES = new Set([
   '/api/workspaces',
   '/api/documents',
   '/api/tasks',
+  '/api/task-templates',
   '/api/policies',
   '/api/policy-change-requests',
   '/api/audit-logs'
@@ -155,6 +158,7 @@ const POST_ROUTES = {
   '/api/workspaces': createWorkspace,
   '/api/documents': createDocument,
   '/api/tasks': createTask,
+  '/api/tasks/from-template': createTaskFromTemplate,
   '/api/policies': createPolicy,
   '/api/policy-change-requests': createPolicyChangeRequest
 };

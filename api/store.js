@@ -105,6 +105,40 @@ function createTask(payload) {
   return item;
 }
 
+function createTaskFromTemplate(payload) {
+  if (!payload?.templateId) {
+    badRequest('templateId is required');
+  }
+
+  const template = state.taskTemplates.find((t) => t.id === payload.templateId);
+  if (!template) {
+    notFound('task template not found');
+  }
+
+  const workspace = payload.workspaceId
+    ? state.workspaces.find((w) => w.id === payload.workspaceId)
+    : state.workspaces[0];
+  if (!workspace) {
+    badRequest('workspaceId is invalid');
+  }
+
+  const prompt = (payload.prompt || template.promptTemplate).replaceAll('{workspaceName}', workspace.name);
+  const evidenceRefs = Array.isArray(payload.evidenceRefs) ? payload.evidenceRefs : template.defaultEvidenceRefs;
+
+  const item = {
+    id: nextId('task', state.tasks),
+    kind: template.kind,
+    prompt,
+    status: 'queued',
+    evidenceRefs,
+    templateId: template.id,
+    workspaceId: workspace.id
+  };
+
+  state.tasks.push(item);
+  return item;
+}
+
 function updateTaskStatus(taskId, payload) {
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task) notFound('task not found');
@@ -249,6 +283,7 @@ module.exports = {
   createWorkspace,
   createDocument,
   createTask,
+  createTaskFromTemplate,
   createPolicy,
   updateTaskStatus,
   createPolicyChangeRequest,
