@@ -67,8 +67,11 @@ const data = {
       status: 'approved',
       requestedBy: 'ops-manager',
       approvedBy: 'compliance-lead',
+      rejectedBy: null,
+      rejectReason: null,
       requestedAt: '2026-04-10',
-      approvedAt: '2026-04-10'
+      approvedAt: '2026-04-10',
+      rejectedAt: null
     }
   ],
   distillation: {

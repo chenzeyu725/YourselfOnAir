@@ -34,6 +34,7 @@ npm run dev
 - `POST /api/policy-change-requests`
 - `PATCH /api/tasks/:taskId/status`
 - `PATCH /api/policy-change-requests/:requestId/approve`
+- `PATCH /api/policy-change-requests/:requestId/reject`
 
 ### 任务完成约束（证据追溯）
 

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 process.env.WRITE_API_KEY = 'test-write-key';
-process.env.WRITE_QUOTA_PER_DAY = '2';
+process.env.WRITE_QUOTA_PER_DAY = '3';
 const { createServer, resetWriteUsage } = require('../server');
 
 function request(pathname, port, method = 'GET', body = null, extraHeaders = {}) {
@@ -238,7 +238,7 @@ test('write usage endpoint returns current quota consumption', async (t) => {
     const before = JSON.parse(beforeRes.body);
     assert.equal(beforeRes.status, 200);
     assert.equal(before.used, 0);
-    assert.equal(before.remaining, 2);
+    assert.equal(before.remaining, 3);
 
     const createRes = await request('/api/workspaces', port, 'POST', {
       name: '配额测试空间',
@@ -250,8 +250,8 @@ test('write usage endpoint returns current quota consumption', async (t) => {
     const after = JSON.parse(afterRes.body);
     assert.equal(afterRes.status, 200);
     assert.equal(after.used, 1);
-    assert.equal(after.remaining, 1);
-    assert.equal(after.quotaPerDay, 2);
+    assert.equal(after.remaining, 2);
+    assert.equal(after.quotaPerDay, 3);
   });
 });
 
@@ -317,6 +317,70 @@ test('returns 400 when approving with invalid status', async (t) => {
     const parsed = JSON.parse(approveRes.body);
     assert.equal(approveRes.status, 400);
     assert.equal(parsed.error, 'only approved status is supported for PATCH');
+  });
+});
+
+test('create and reject policy change request', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/policy-change-requests', port, 'POST', {
+      policyId: 'policy-001',
+      proposedRule: '外部场景统一回答“暂无可披露细节”。',
+      reason: '拟采用更保守口径',
+      requestedBy: 'ops-analyst'
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const rejectRes = await request(
+      `/api/policy-change-requests/${created.id}/reject`,
+      port,
+      'PATCH',
+      { status: 'rejected', rejectedBy: 'compliance-lead', rejectReason: '缺少法务签字' },
+      { 'x-api-key': 'test-write-key' }
+    );
+    const rejected = JSON.parse(rejectRes.body);
+    assert.equal(rejectRes.status, 200);
+    assert.equal(rejected.status, 'rejected');
+    assert.equal(rejected.rejectedBy, 'compliance-lead');
+    assert.equal(rejected.rejectReason, '缺少法务签字');
+
+    const policiesRes = await request('/api/policies', port);
+    const policies = JSON.parse(policiesRes.body);
+    const targetPolicy = policies.find((p) => p.id === 'policy-001');
+    assert.equal(targetPolicy.rule.includes('暂无可披露细节'), false);
+  });
+});
+
+test('returns 400 when approving a rejected policy change request', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/policy-change-requests', port, 'POST', {
+      policyId: 'policy-001',
+      proposedRule: '只允许对外使用“项目探索中”。',
+      reason: '收紧表达',
+      requestedBy: 'ops-analyst'
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const rejectRes = await request(
+      `/api/policy-change-requests/${created.id}/reject`,
+      port,
+      'PATCH',
+      { status: 'rejected', rejectedBy: 'compliance-lead', rejectReason: '证据不足' },
+      { 'x-api-key': 'test-write-key' }
+    );
+    assert.equal(rejectRes.status, 200);
+
+    const approveRes = await request(
+      `/api/policy-change-requests/${created.id}/approve`,
+      port,
+      'PATCH',
+      { status: 'approved', approvedBy: 'compliance-lead' },
+      { 'x-api-key': 'test-write-key' }
+    );
+    const parsed = JSON.parse(approveRes.body);
+    assert.equal(approveRes.status, 400);
+    assert.equal(parsed.error, 'cannot approve request in rejected status');
   });
 });
 
@@ -387,11 +451,13 @@ test('returns 429 when write quota exceeded', async (t) => {
     const first = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'a' }, headers);
     const second = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'b' }, headers);
     const third = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'c' }, headers);
-    const parsed = JSON.parse(third.body);
+    const fourth = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'd' }, headers);
+    const parsed = JSON.parse(fourth.body);
 
     assert.equal(first.status, 201);
     assert.equal(second.status, 201);
-    assert.equal(third.status, 429);
-    assert.equal(parsed.error, 'write quota exceeded: 2/day');
+    assert.equal(third.status, 201);
+    assert.equal(fourth.status, 429);
+    assert.equal(parsed.error, 'write quota exceeded: 3/day');
   });
 });
