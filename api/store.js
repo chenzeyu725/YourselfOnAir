@@ -109,12 +109,30 @@ function updateTaskStatus(taskId, payload) {
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task) notFound('task not found');
 
-  const { status } = payload || {};
-  if (!allowedTaskStatus.has(status)) {
+  const { status, evidenceRefs } = payload || {};
+  if (status === undefined && evidenceRefs === undefined) {
+    badRequest('at least one of status or evidenceRefs is required');
+  }
+
+  if (status !== undefined && !allowedTaskStatus.has(status)) {
     badRequest('status must be one of: queued, running, done, failed');
   }
 
-  task.status = status;
+  if (evidenceRefs !== undefined) {
+    if (!Array.isArray(evidenceRefs) || evidenceRefs.some((ref) => typeof ref !== 'string' || ref.trim() === '')) {
+      badRequest('evidenceRefs must be an array of non-empty strings when provided');
+    }
+    task.evidenceRefs = evidenceRefs;
+  }
+
+  const nextStatus = status === undefined ? task.status : status;
+  if (nextStatus === 'done' && (!Array.isArray(task.evidenceRefs) || task.evidenceRefs.length === 0)) {
+    badRequest('task without evidenceRefs cannot be marked as done');
+  }
+
+  if (status !== undefined) {
+    task.status = status;
+  }
   return task;
 }
 
