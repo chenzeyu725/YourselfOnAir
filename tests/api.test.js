@@ -151,8 +151,28 @@ test('allows marking task done when evidenceRefs exists', async (t) => {
   await withServer(t, async (port) => {
     const createRes = await request('/api/tasks', port, 'POST', {
       kind: 'analysis',
-      prompt: '输出结论',
-      evidenceRefs: ['doc-001#p3']
+      prompt: '输出结论'
+    }, { 'x-api-key': 'test-write-key' });
+
+    const patchRes = await request(
+      `/api/tasks/${JSON.parse(createRes.body).id}/status`,
+      port,
+      'PATCH',
+      { status: 'done', evidenceRefs: ['doc-001#p3'] },
+      { 'x-api-key': 'test-write-key' }
+    );
+    const updated = JSON.parse(patchRes.body);
+    assert.equal(patchRes.status, 200);
+    assert.equal(updated.status, 'done');
+    assert.deepEqual(updated.evidenceRefs, ['doc-001#p3']);
+  });
+});
+
+test('returns 400 when evidenceRefs payload is invalid', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '输出结论'
     }, { 'x-api-key': 'test-write-key' });
     const created = JSON.parse(createRes.body);
 
@@ -160,12 +180,12 @@ test('allows marking task done when evidenceRefs exists', async (t) => {
       `/api/tasks/${created.id}/status`,
       port,
       'PATCH',
-      { status: 'done' },
+      { status: 'running', evidenceRefs: ['doc-001', ''] },
       { 'x-api-key': 'test-write-key' }
     );
-    const updated = JSON.parse(patchRes.body);
-    assert.equal(patchRes.status, 200);
-    assert.equal(updated.status, 'done');
+    const parsed = JSON.parse(patchRes.body);
+    assert.equal(patchRes.status, 400);
+    assert.equal(parsed.error, 'evidenceRefs must be an array of non-empty strings when provided');
   });
 });
 

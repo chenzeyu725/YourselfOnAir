@@ -109,9 +109,16 @@ function updateTaskStatus(taskId, payload) {
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task) notFound('task not found');
 
-  const { status } = payload || {};
+  const { status, evidenceRefs } = payload || {};
   if (!allowedTaskStatus.has(status)) {
     badRequest('status must be one of: queued, running, done, failed');
+  }
+
+  if (evidenceRefs !== undefined) {
+    if (!Array.isArray(evidenceRefs) || evidenceRefs.some((ref) => typeof ref !== 'string' || ref.trim() === '')) {
+      badRequest('evidenceRefs must be an array of non-empty strings when provided');
+    }
+    task.evidenceRefs = evidenceRefs;
   }
 
   if (status === 'done' && (!Array.isArray(task.evidenceRefs) || task.evidenceRefs.length === 0)) {
