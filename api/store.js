@@ -7,6 +7,7 @@ const allowedSourceTypes = new Set(['document', 'chat', 'image', 'log']);
 const allowedTaskKinds = new Set(['chat', 'doc', 'analysis']);
 const allowedTaskStatus = new Set(['queued', 'running', 'done', 'failed']);
 const allowedAudience = new Set(['internal', 'external', 'partner']);
+const allowedPolicyChangeStatus = new Set(['pending', 'approved']);
 
 const nowDate = () => new Date().toISOString().slice(0, 10);
 
@@ -138,11 +139,68 @@ function createPolicy(payload) {
   return item;
 }
 
+function createPolicyChangeRequest(payload) {
+  if (!payload?.policyId || !payload?.proposedRule || !payload?.reason || !payload?.requestedBy) {
+    badRequest('policyId, proposedRule, reason and requestedBy are required');
+  }
+
+  const policy = state.policies.find((p) => p.id === payload.policyId);
+  if (!policy) notFound('policy not found');
+
+  const item = {
+    id: nextId('pcr', state.policyChangeRequests),
+    policyId: payload.policyId,
+    proposedRule: payload.proposedRule,
+    reason: payload.reason,
+    status: 'pending',
+    requestedBy: payload.requestedBy,
+    approvedBy: null,
+    requestedAt: nowDate(),
+    approvedAt: null
+  };
+
+  state.policyChangeRequests.push(item);
+  return item;
+}
+
+function approvePolicyChangeRequest(requestId, payload) {
+  const req = state.policyChangeRequests.find((x) => x.id === requestId);
+  if (!req) notFound('policy change request not found');
+
+  const { status, approvedBy } = payload || {};
+  if (!allowedPolicyChangeStatus.has(status)) {
+    badRequest('status must be one of: pending, approved');
+  }
+  if (status !== 'approved') {
+    badRequest('only approved status is supported for PATCH');
+  }
+  if (!approvedBy) {
+    badRequest('approvedBy is required');
+  }
+  if (req.status === 'approved') {
+    badRequest('request already approved');
+  }
+
+  const policy = state.policies.find((p) => p.id === req.policyId);
+  if (!policy) notFound('linked policy not found');
+
+  req.status = 'approved';
+  req.approvedBy = approvedBy;
+  req.approvedAt = nowDate();
+
+  policy.rule = req.proposedRule;
+  policy.changedBy = approvedBy;
+
+  return req;
+}
+
 module.exports = {
   state,
   createWorkspace,
   createDocument,
   createTask,
   createPolicy,
-  updateTaskStatus
+  updateTaskStatus,
+  createPolicyChangeRequest,
+  approvePolicyChangeRequest
 };
