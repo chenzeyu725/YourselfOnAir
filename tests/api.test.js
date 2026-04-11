@@ -1,71 +1,87 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
-const { server } = require('../server');
+const { createServer } = require('../server');
 
-function get(pathname, port) {
+function request(pathname, port, method = 'GET') {
   return new Promise((resolve, reject) => {
-    const req = http.request({ hostname: '127.0.0.1', port, path: pathname, method: 'GET' }, (res) => {
+    const req = http.request({ hostname: '127.0.0.1', port, path: pathname, method }, (res) => {
       let data = '';
       res.on('data', (chunk) => (data += chunk));
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }));
     });
     req.on('error', reject);
     req.end();
   });
 }
 
-test('health endpoint returns ok', async (t) => {
+async function withServer(t, fn) {
+  const server = createServer();
   await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
   t.after(() => server.close());
+  await fn(server.address().port);
+}
 
-  const res = await get('/api/health', port);
-  const parsed = JSON.parse(res.body);
+test('health endpoint returns ok', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/health', port);
+    const parsed = JSON.parse(res.body);
 
-  assert.equal(res.status, 200);
-  assert.equal(parsed.ok, true);
+    assert.equal(res.status, 200);
+    assert.equal(parsed.ok, true);
+  });
 });
 
 test('workspaces endpoint returns list', async (t) => {
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
-  t.after(() => server.close());
+  await withServer(t, async (port) => {
+    const res = await request('/api/workspaces', port);
+    const parsed = JSON.parse(res.body);
 
-  const res = await get('/api/workspaces', port);
-  const parsed = JSON.parse(res.body);
-
-  assert.equal(res.status, 200);
-  assert.ok(Array.isArray(parsed));
-  assert.ok(parsed.length > 0);
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(parsed));
+    assert.ok(parsed.length > 0);
+  });
 });
 
 test('distillation endpoints expose self and expert structures', async (t) => {
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
-  t.after(() => server.close());
+  await withServer(t, async (port) => {
+    const selfRes = await request('/api/distillation/self', port);
+    const expertRes = await request('/api/distillation/expert', port);
 
-  const selfRes = await get('/api/distillation/self', port);
-  const expertRes = await get('/api/distillation/expert', port);
+    const selfParsed = JSON.parse(selfRes.body);
+    const expertParsed = JSON.parse(expertRes.body);
 
-  const selfParsed = JSON.parse(selfRes.body);
-  const expertParsed = JSON.parse(expertRes.body);
-
-  assert.equal(selfRes.status, 200);
-  assert.equal(expertRes.status, 200);
-  assert.ok(Array.isArray(selfParsed.workMemory.preferredWorkflow));
-  assert.ok(Array.isArray(expertParsed.fiveLayers.mentalModels));
+    assert.equal(selfRes.status, 200);
+    assert.equal(expertRes.status, 200);
+    assert.ok(Array.isArray(selfParsed.workMemory.preferredWorkflow));
+    assert.ok(Array.isArray(expertParsed.fiveLayers.mentalModels));
+  });
 });
 
 test('fusion preview returns weighted strategy', async (t) => {
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
-  t.after(() => server.close());
+  await withServer(t, async (port) => {
+    const res = await request('/api/fusion/preview', port);
+    const parsed = JSON.parse(res.body);
 
-  const res = await get('/api/fusion/preview', port);
-  const parsed = JSON.parse(res.body);
+    assert.equal(res.status, 200);
+    assert.equal(typeof parsed.weights.enterpriseFacts, 'number');
+    assert.equal(typeof parsed.sampleOutput, 'string');
+  });
+});
 
-  assert.equal(res.status, 200);
-  assert.equal(typeof parsed.weights.enterpriseFacts, 'number');
-  assert.equal(typeof parsed.sampleOutput, 'string');
+test('rejects non-GET method with 405', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/health', port, 'POST');
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 405);
+    assert.equal(parsed.error, 'Method Not Allowed');
+  });
+});
+
+test('blocks directory traversal', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/../server.js', port);
+    assert.equal(res.status, 403);
+  });
 });

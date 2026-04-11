@@ -6,57 +6,87 @@ const { data } = require('./api/data');
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-const json = (res, payload, status = 200) => {
+const CONTENT_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png'
+};
+
+const API_ROUTES = {
+  '/api/health': () => ({ ok: true, service: 'yourself-on-air-mvp' }),
+  '/api/workspaces': () => data.workspaces,
+  '/api/documents': () => data.documents,
+  '/api/tasks': () => data.tasks,
+  '/api/policies': () => data.policies,
+  '/api/distillation/self': () => data.distillation.self,
+  '/api/distillation/expert': () => data.distillation.expert,
+  '/api/provenance': () => data.distillation.provenance,
+  '/api/fusion/preview': () => data.fusionPreview,
+  '/api/billing': () => data.billing
+};
+
+function setSecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+}
+
+function sendJson(res, payload, status = 200) {
+  setSecurityHeaders(res);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(payload, null, 2));
-};
+}
 
-const serveFile = (res, filePath) => {
+function sendText(res, text, status = 200) {
+  setSecurityHeaders(res);
+  res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end(text);
+}
+
+function serveStaticFile(res, filePath) {
   fs.readFile(filePath, (err, file) => {
-    if (err) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Not found');
-      return;
-    }
+    if (err) return sendText(res, 'Not found', 404);
 
     const ext = path.extname(filePath);
-    const contentTypes = {
-      '.html': 'text/html; charset=utf-8',
-      '.css': 'text/css; charset=utf-8',
-      '.js': 'application/javascript; charset=utf-8',
-      '.json': 'application/json; charset=utf-8'
-    };
-
-    res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'text/plain; charset=utf-8' });
+    setSecurityHeaders(res);
+    res.writeHead(200, { 'Content-Type': CONTENT_TYPES[ext] || 'application/octet-stream' });
     res.end(file);
   });
-};
+}
 
-const server = http.createServer((req, res) => {
-  const reqPath = new URL(req.url, `http://${req.headers.host}`).pathname;
+function createServer() {
+  return http.createServer((req, res) => {
+    const rawUrl = decodeURIComponent(req.url || '/');
+    const reqPath = new URL(req.url, `http://${req.headers.host}`).pathname;
 
-  if (reqPath === '/api/health') return json(res, { ok: true, service: 'yourself-on-air-mvp' });
-  if (reqPath === '/api/workspaces') return json(res, data.workspaces);
-  if (reqPath === '/api/documents') return json(res, data.documents);
-  if (reqPath === '/api/tasks') return json(res, data.tasks);
-  if (reqPath === '/api/policies') return json(res, data.policies);
-  if (reqPath === '/api/distillation/self') return json(res, data.distillation.self);
-  if (reqPath === '/api/distillation/expert') return json(res, data.distillation.expert);
-  if (reqPath === '/api/provenance') return json(res, data.distillation.provenance);
-  if (reqPath === '/api/fusion/preview') return json(res, data.fusionPreview);
-  if (reqPath === '/api/billing') return json(res, data.billing);
+    if (rawUrl.includes('..')) {
+      return sendText(res, 'Forbidden', 403);
+    }
 
-  const normalized = reqPath === '/' ? '/index.html' : reqPath;
-  const filePath = path.join(PUBLIC_DIR, normalized);
+    if (req.method !== 'GET') {
+      return sendJson(res, { error: 'Method Not Allowed', allow: ['GET'] }, 405);
+    }
 
-  if (!filePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Forbidden');
-    return;
-  }
+    const apiHandler = API_ROUTES[reqPath];
+    if (apiHandler) {
+      return sendJson(res, apiHandler());
+    }
 
-  serveFile(res, filePath);
-});
+    const normalized = reqPath === '/' ? '/index.html' : reqPath;
+    const filePath = path.join(PUBLIC_DIR, normalized);
+
+    if (!filePath.startsWith(PUBLIC_DIR)) {
+      return sendText(res, 'Forbidden', 403);
+    }
+
+    return serveStaticFile(res, filePath);
+  });
+}
+
+const server = createServer();
 
 if (require.main === module) {
   server.listen(PORT, () => {
@@ -64,4 +94,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server };
+module.exports = { server, createServer, API_ROUTES };

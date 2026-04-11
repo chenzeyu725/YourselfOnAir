@@ -16,7 +16,6 @@ function renderList(targetId, list, formatter) {
 
 (async function init() {
   const [workspaces, documents, tasks, policies, billing, selfDistill, expertDistill, provenance, fusionPreview] = await Promise.all([
-  const [workspaces, documents, tasks, policies, billing] = await Promise.all([
     fetchJson('/api/workspaces'),
     fetchJson('/api/documents'),
     fetchJson('/api/tasks'),
@@ -41,13 +40,6 @@ function renderList(targetId, list, formatter) {
   document.getElementById('provenance-rule').textContent = provenance.rule;
   document.getElementById('fusion-weights').textContent = JSON.stringify(fusionPreview.weights);
   document.getElementById('fusion-output').textContent = fusionPreview.sampleOutput;
-    fetchJson('/api/billing')
-  ]);
-
-  renderList('workspaces', workspaces, (w) => `${w.name}（owner: ${w.owner}）`);
-  renderList('documents', documents, (d) => `${d.name} [${d.type}] - ${d.status}`);
-  renderList('tasks', tasks, (t) => `${t.kind.toUpperCase()}：${t.prompt}（${t.status}）`);
-  renderList('policies', policies, (p) => `${p.audience} / ${p.title}`);
 
   document.getElementById('plan').textContent = billing.plan;
   document.getElementById('storage').textContent = `${billing.usedGB}GB / ${billing.storageGB}GB`;
