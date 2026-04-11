@@ -26,6 +26,25 @@ npm run dev
 - `GET /api/fusion/preview`
 - `GET /api/write-usage`（需 `x-api-key`，返回今日写配额使用情况）
 
+### 列表接口查询参数（本轮新增）
+
+以下列表接口支持统一查询参数：`/api/workspaces`、`/api/documents`、`/api/tasks`、`/api/policies`、`/api/policy-change-requests`。
+
+- `q`：全文模糊匹配（在记录 JSON 文本上匹配）。
+- `status`：按 `status` 精确过滤（如 tasks 的 `running/done`）。
+- `workspaceId`：按 `workspaceId` 精确过滤（如 documents）。
+- `owner`：按 `owner` 精确过滤（如 workspaces）。
+- `sortBy`：按字段排序（如 `id`、`name`）。
+- `order`：排序方向，`asc`（默认）或 `desc`。
+- `offset`：从第 N 条开始（非负整数）。
+- `limit`：最多返回 N 条（非负整数，最大 100）。
+
+示例：
+
+```bash
+curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5"
+```
+
 写入类（本轮新增）：
 - `POST /api/workspaces`
 - `POST /api/documents`
