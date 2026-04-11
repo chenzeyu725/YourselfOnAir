@@ -34,6 +34,19 @@ npm run dev
 - `PATCH /api/tasks/:taskId/status`
 - `PATCH /api/policy-change-requests/:requestId/approve`
 
+### 写接口鉴权与配额
+
+从当前版本开始，所有写接口（`POST/PATCH`）都要求请求头携带：
+
+- `x-api-key: <WRITE_API_KEY>`
+
+默认环境变量：
+
+- `WRITE_API_KEY=dev-write-key`
+- `WRITE_QUOTA_PER_DAY=20`（单个 API Key 每日写入上限）
+
+超限会返回 `429 write quota exceeded`。
+
 ## 测试
 
 ```bash
