@@ -24,6 +24,7 @@ npm run dev
 - `GET /api/distillation/expert`
 - `GET /api/provenance`
 - `GET /api/fusion/preview`
+- `GET /api/write-usage`（需 `x-api-key`，返回今日写配额使用情况）
 
 写入类（本轮新增）：
 - `POST /api/workspaces`
