@@ -1,11 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
-const { createServer } = require('../server');
+process.env.WRITE_API_KEY = 'test-write-key';
+process.env.WRITE_QUOTA_PER_DAY = '2';
+const { createServer, resetWriteUsage } = require('../server');
 
-function request(pathname, port, method = 'GET', body = null) {
+function request(pathname, port, method = 'GET', body = null, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
-    const headers = {};
+    const headers = { ...extraHeaders };
     let payload;
     if (body !== null) {
       payload = JSON.stringify(body);
@@ -25,6 +27,7 @@ function request(pathname, port, method = 'GET', body = null) {
 }
 
 async function withServer(t, fn) {
+  resetWriteUsage();
   const server = createServer();
   await new Promise((resolve) => server.listen(0, resolve));
   t.after(() => server.close());
@@ -84,7 +87,7 @@ test('create workspace via POST', async (t) => {
       name: '研发协作空间',
       owner: 'engineering',
       visibility: 'team'
-    });
+    }, { 'x-api-key': 'test-write-key' });
     const created = JSON.parse(createRes.body);
 
     assert.equal(createRes.status, 201);
@@ -101,13 +104,19 @@ test('create task and update status via PATCH', async (t) => {
     const createRes = await request('/api/tasks', port, 'POST', {
       kind: 'analysis',
       prompt: '对比两版方案风险'
-    });
+    }, { 'x-api-key': 'test-write-key' });
     const created = JSON.parse(createRes.body);
 
     assert.equal(createRes.status, 201);
     assert.equal(created.status, 'queued');
 
-    const patchRes = await request(`/api/tasks/${created.id}/status`, port, 'PATCH', { status: 'running' });
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { status: 'running' },
+      { 'x-api-key': 'test-write-key' }
+    );
     const updated = JSON.parse(patchRes.body);
 
     assert.equal(patchRes.status, 200);
@@ -122,7 +131,7 @@ test('create and approve policy change request', async (t) => {
       proposedRule: '外部沟通仅可披露“仍在验证商业化路径”，禁止披露收入规模与预测值。',
       reason: '避免多渠道披露口径不一致',
       requestedBy: 'ops-analyst'
-    });
+    }, { 'x-api-key': 'test-write-key' });
     const created = JSON.parse(createRes.body);
 
     assert.equal(createRes.status, 201);
@@ -132,7 +141,8 @@ test('create and approve policy change request', async (t) => {
       `/api/policy-change-requests/${created.id}/approve`,
       port,
       'PATCH',
-      { status: 'approved', approvedBy: 'compliance-lead' }
+      { status: 'approved', approvedBy: 'compliance-lead' },
+      { 'x-api-key': 'test-write-key' }
     );
     const approved = JSON.parse(approveRes.body);
     assert.equal(approveRes.status, 200);
@@ -154,14 +164,15 @@ test('returns 400 when approving with invalid status', async (t) => {
       proposedRule: '只允许发布已公开信息，不允许给出预测数字。',
       reason: '管控外部风险',
       requestedBy: 'ops-analyst'
-    });
+    }, { 'x-api-key': 'test-write-key' });
     const created = JSON.parse(createRes.body);
 
     const approveRes = await request(
       `/api/policy-change-requests/${created.id}/approve`,
       port,
       'PATCH',
-      { status: 'pending', approvedBy: 'compliance-lead' }
+      { status: 'pending', approvedBy: 'compliance-lead' },
+      { 'x-api-key': 'test-write-key' }
     );
     const parsed = JSON.parse(approveRes.body);
     assert.equal(approveRes.status, 400);
@@ -178,7 +189,10 @@ test('returns 400 for invalid json body', async (t) => {
           port,
           path: '/api/workspaces',
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'test-write-key'
+          }
         },
         (res) => {
           let data = '';
@@ -199,7 +213,7 @@ test('returns 400 for invalid json body', async (t) => {
 
 test('returns 400 for invalid workspace payload', async (t) => {
   await withServer(t, async (port) => {
-    const res = await request('/api/workspaces', port, 'POST', { owner: 'ops' });
+    const res = await request('/api/workspaces', port, 'POST', { owner: 'ops' }, { 'x-api-key': 'test-write-key' });
     const parsed = JSON.parse(res.body);
 
     assert.equal(res.status, 400);
@@ -211,5 +225,33 @@ test('blocks directory traversal', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/../server.js', port);
     assert.equal(res.status, 403);
+  });
+});
+
+test('returns 401 for write api without x-api-key', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks', port, 'POST', {
+      kind: 'chat',
+      prompt: 'test auth'
+    });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 401);
+    assert.equal(parsed.error, 'unauthorized: missing or invalid x-api-key');
+  });
+});
+
+test('returns 429 when write quota exceeded', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const first = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'a' }, headers);
+    const second = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'b' }, headers);
+    const third = await request('/api/tasks', port, 'POST', { kind: 'chat', prompt: 'c' }, headers);
+    const parsed = JSON.parse(third.body);
+
+    assert.equal(first.status, 201);
+    assert.equal(second.status, 201);
+    assert.equal(third.status, 429);
+    assert.equal(parsed.error, 'write quota exceeded: 2/day');
   });
 });

@@ -14,6 +14,9 @@ const {
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const WRITE_API_KEY = process.env.WRITE_API_KEY || 'dev-write-key';
+const WRITE_QUOTA_PER_DAY = Number(process.env.WRITE_QUOTA_PER_DAY || 20);
+const writeUsage = new Map();
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -64,6 +67,45 @@ function sendText(res, text, status = 200) {
   res.end(text);
 }
 
+function usageKeyForToday(apiKey, date = new Date()) {
+  const day = date.toISOString().slice(0, 10);
+  return `${apiKey}::${day}`;
+}
+
+function getWriteUsage(apiKey) {
+  return writeUsage.get(usageKeyForToday(apiKey)) || 0;
+}
+
+function consumeWriteQuota(apiKey) {
+  const key = usageKeyForToday(apiKey);
+  const current = writeUsage.get(key) || 0;
+  const next = current + 1;
+  writeUsage.set(key, next);
+  return next;
+}
+
+function resetWriteUsage() {
+  writeUsage.clear();
+}
+
+function authorizeWriteRequest(req) {
+  const apiKey = req.headers['x-api-key'];
+  if (!apiKey || apiKey !== WRITE_API_KEY) {
+    const err = new Error('unauthorized: missing or invalid x-api-key');
+    err.status = 401;
+    return { ok: false, error: err };
+  }
+
+  const used = getWriteUsage(apiKey);
+  if (used >= WRITE_QUOTA_PER_DAY) {
+    const err = new Error(`write quota exceeded: ${WRITE_QUOTA_PER_DAY}/day`);
+    err.status = 429;
+    return { ok: false, error: err };
+  }
+
+  return { ok: true, apiKey };
+}
+
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -108,8 +150,11 @@ async function handleApi(req, res, reqPath) {
   if (req.method === 'POST') {
     const creator = POST_ROUTES[reqPath];
     if (!creator) return false;
+    const auth = authorizeWriteRequest(req);
+    if (!auth.ok) throw auth.error;
     const payload = await parseJsonBody(req);
     const created = creator(payload);
+    consumeWriteQuota(auth.apiKey);
     sendJson(res, created, 201);
     return true;
   }
@@ -117,16 +162,22 @@ async function handleApi(req, res, reqPath) {
   if (req.method === 'PATCH') {
     const taskStatusMatch = reqPath.match(/^\/api\/tasks\/(task-\d+)\/status$/);
     if (taskStatusMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = updateTaskStatus(taskStatusMatch[1], payload);
+      consumeWriteQuota(auth.apiKey);
       sendJson(res, updated);
       return true;
     }
 
     const policyApproveMatch = reqPath.match(/^\/api\/policy-change-requests\/(pcr-\d+)\/approve$/);
     if (policyApproveMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
+      consumeWriteQuota(auth.apiKey);
       sendJson(res, updated);
       return true;
     }
@@ -177,4 +228,13 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, createServer, GET_ROUTES, POST_ROUTES };
+module.exports = {
+  server,
+  createServer,
+  GET_ROUTES,
+  POST_ROUTES,
+  authorizeWriteRequest,
+  getWriteUsage,
+  consumeWriteQuota,
+  resetWriteUsage
+};
