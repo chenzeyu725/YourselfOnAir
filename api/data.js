@@ -48,6 +48,24 @@ const data = {
       evidenceRefs: []
     }
   ],
+  taskTemplates: [
+    {
+      id: 'tpl-001',
+      name: '客户周报生成',
+      kind: 'doc',
+      promptTemplate: '基于 {workspaceName} 的本周资料，生成客户周报（进展、风险、下周计划）。',
+      requiredEvidenceTypes: ['document', 'chat'],
+      defaultEvidenceRefs: ['doc-001#p1-p3', 'doc-002#L1-L40']
+    },
+    {
+      id: 'tpl-002',
+      name: '策略复盘分析',
+      kind: 'analysis',
+      promptTemplate: '对 {workspaceName} 最近一次策略动作做复盘，输出结论、原因、改进建议。',
+      requiredEvidenceTypes: ['document', 'log'],
+      defaultEvidenceRefs: []
+    }
+  ],
   policies: [
     {
       id: 'policy-001',

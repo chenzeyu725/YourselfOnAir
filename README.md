@@ -17,6 +17,7 @@ npm run dev
 - `GET /api/workspaces`
 - `GET /api/documents`
 - `GET /api/tasks`
+- `GET /api/task-templates`
 - `GET /api/policies`
 - `GET /api/policy-change-requests`
 - `GET /api/audit-logs`
@@ -53,6 +54,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `POST /api/workspaces`
 - `POST /api/documents`
 - `POST /api/tasks`
+- `POST /api/tasks/from-template`
 - `POST /api/policies`
 - `POST /api/policy-change-requests`
 - `PATCH /api/tasks/:taskId/status`
@@ -66,6 +68,12 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `PATCH /api/tasks/:taskId/status` 支持部分更新：可仅更新 `status`、仅更新 `evidenceRefs`，或同时更新两者。
 - 若请求体同时缺少 `status` 与 `evidenceRefs`，接口会返回 `400`。
 - 若任务没有证据引用，`PATCH /api/tasks/:taskId/status` 会返回 `400`。
+
+### 任务模板（本轮新增）
+
+- `GET /api/task-templates`：查看可用任务模板（支持通用列表查询参数，如 `sortBy`、`limit`）。
+- `POST /api/tasks/from-template`：按模板创建任务，必须传 `templateId`，可选 `workspaceId` / `prompt` / `evidenceRefs`。
+- 当 `prompt` 未传入时，会使用模板中的 `promptTemplate`，并自动替换 `{workspaceName}` 变量。
 
 ### 写接口鉴权与配额
 
