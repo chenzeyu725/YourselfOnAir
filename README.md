@@ -3,7 +3,6 @@
 这是一个零依赖（无第三方 npm 包）可运行原型，用于把 `PRODUCT_PLAN_V1.md` 的产品结构落到可演示系统。
 
 ## 本地快速启动
-## 快速启动
 
 ```bash
 npm run dev
@@ -13,22 +12,24 @@ npm run dev
 
 ## API 列表
 
-基础：
+读取类：
 - `GET /api/health`
 - `GET /api/workspaces`
 - `GET /api/documents`
 - `GET /api/tasks`
 - `GET /api/policies`
 - `GET /api/billing`
-
-蒸馏与融合：
 - `GET /api/distillation/self`
 - `GET /api/distillation/expert`
 - `GET /api/provenance`
 - `GET /api/fusion/preview`
 
-接口约束：
-- 当前 API 为只读演示版，仅支持 `GET`；其他方法返回 `405 Method Not Allowed`。
+写入类（本轮新增）：
+- `POST /api/workspaces`
+- `POST /api/documents`
+- `POST /api/tasks`
+- `POST /api/policies`
+- `PATCH /api/tasks/:taskId/status`
 
 ## 测试
 
@@ -45,9 +46,7 @@ npm test
 1. 把当前仓库推到 GitHub。
 2. 在 Render 新建 `Web Service` 并选择仓库。
 3. Render 自动识别 `render.yaml` + `Dockerfile`。
-4. 部署后检查：
-   - `/`
-   - `/api/health`
+4. 部署后检查：`/`、`/api/health`。
 
 ### 方式 B：任意支持 Docker 的平台
 

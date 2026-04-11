@@ -34,7 +34,14 @@
 ## 3. API 标准
 
 - 健康检查：`GET /api/health`，返回 `ok=true`
-- 只读阶段 API 默认仅允许 `GET`，其他方法返回 405
+- 读取端点：`GET /api/*`
+- 写入端点：
+  - `POST /api/workspaces`
+  - `POST /api/documents`
+  - `POST /api/tasks`
+  - `POST /api/policies`
+  - `PATCH /api/tasks/:taskId/status`
+- 非支持方法返回 405
 - 蒸馏端点：
   - `GET /api/distillation/self`
   - `GET /api/distillation/expert`
@@ -49,7 +56,7 @@
 ## 5. 测试标准
 
 - 至少覆盖：健康检查、工作区列表、蒸馏结构、融合输出
-- 至少覆盖：非 GET 405、目录穿越阻断
+- 至少覆盖：405、目录穿越阻断、POST/PATCH 成功与失败路径
 - 所有测试在 `node --test` 下可直接执行
 
 ## 6. 云部署标准

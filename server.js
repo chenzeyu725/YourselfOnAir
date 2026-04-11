@@ -1,7 +1,14 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { data } = require('./api/data');
+const {
+  state,
+  createWorkspace,
+  createDocument,
+  createTask,
+  createPolicy,
+  updateTaskStatus
+} = require('./api/store');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -15,17 +22,24 @@ const CONTENT_TYPES = {
   '.png': 'image/png'
 };
 
-const API_ROUTES = {
+const GET_ROUTES = {
   '/api/health': () => ({ ok: true, service: 'yourself-on-air-mvp' }),
-  '/api/workspaces': () => data.workspaces,
-  '/api/documents': () => data.documents,
-  '/api/tasks': () => data.tasks,
-  '/api/policies': () => data.policies,
-  '/api/distillation/self': () => data.distillation.self,
-  '/api/distillation/expert': () => data.distillation.expert,
-  '/api/provenance': () => data.distillation.provenance,
-  '/api/fusion/preview': () => data.fusionPreview,
-  '/api/billing': () => data.billing
+  '/api/workspaces': () => state.workspaces,
+  '/api/documents': () => state.documents,
+  '/api/tasks': () => state.tasks,
+  '/api/policies': () => state.policies,
+  '/api/distillation/self': () => state.distillation.self,
+  '/api/distillation/expert': () => state.distillation.expert,
+  '/api/provenance': () => state.distillation.provenance,
+  '/api/fusion/preview': () => state.fusionPreview,
+  '/api/billing': () => state.billing
+};
+
+const POST_ROUTES = {
+  '/api/workspaces': createWorkspace,
+  '/api/documents': createDocument,
+  '/api/tasks': createTask,
+  '/api/policies': createPolicy
 };
 
 function setSecurityHeaders(res) {
@@ -46,6 +60,28 @@ function sendText(res, text, status = 200) {
   res.end(text);
 }
 
+function parseJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 1_000_000) {
+        reject(Object.assign(new Error('payload too large'), { status: 413 }));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (!raw) return resolve({});
+      try {
+        resolve(JSON.parse(raw));
+      } catch {
+        reject(Object.assign(new Error('invalid json body'), { status: 400 }));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 function serveStaticFile(res, filePath) {
   fs.readFile(filePath, (err, file) => {
     if (err) return sendText(res, 'Not found', 404);
@@ -57,32 +93,64 @@ function serveStaticFile(res, filePath) {
   });
 }
 
+async function handleApi(req, res, reqPath) {
+  if (req.method === 'GET') {
+    const getter = GET_ROUTES[reqPath];
+    if (!getter) return false;
+    sendJson(res, getter());
+    return true;
+  }
+
+  if (req.method === 'POST') {
+    const creator = POST_ROUTES[reqPath];
+    if (!creator) return false;
+    const payload = await parseJsonBody(req);
+    const created = creator(payload);
+    sendJson(res, created, 201);
+    return true;
+  }
+
+  if (req.method === 'PATCH') {
+    const taskStatusMatch = reqPath.match(/^\/api\/tasks\/(task-\d+)\/status$/);
+    if (!taskStatusMatch) return false;
+    const payload = await parseJsonBody(req);
+    const updated = updateTaskStatus(taskStatusMatch[1], payload);
+    sendJson(res, updated);
+    return true;
+  }
+
+  if (reqPath.startsWith('/api/')) {
+    sendJson(res, { error: 'Method Not Allowed', allow: ['GET', 'POST', 'PATCH'] }, 405);
+    return true;
+  }
+
+  return false;
+}
+
 function createServer() {
-  return http.createServer((req, res) => {
-    const rawUrl = decodeURIComponent(req.url || '/');
-    const reqPath = new URL(req.url, `http://${req.headers.host}`).pathname;
+  return http.createServer(async (req, res) => {
+    try {
+      const rawUrl = decodeURIComponent(req.url || '/');
+      const reqPath = new URL(req.url, `http://${req.headers.host}`).pathname;
 
-    if (rawUrl.includes('..')) {
-      return sendText(res, 'Forbidden', 403);
+      if (rawUrl.includes('..')) return sendText(res, 'Forbidden', 403);
+
+      const apiHandled = await handleApi(req, res, reqPath);
+      if (apiHandled) return;
+
+      const normalized = reqPath === '/' ? '/index.html' : reqPath;
+      const filePath = path.join(PUBLIC_DIR, normalized);
+
+      if (!filePath.startsWith(PUBLIC_DIR)) return sendText(res, 'Forbidden', 403);
+      return serveStaticFile(res, filePath);
+    } catch (error) {
+      const status = error.status || 500;
+      const body = {
+        error: error.message || 'internal server error'
+      };
+      if (error.details) body.details = error.details;
+      return sendJson(res, body, status);
     }
-
-    if (req.method !== 'GET') {
-      return sendJson(res, { error: 'Method Not Allowed', allow: ['GET'] }, 405);
-    }
-
-    const apiHandler = API_ROUTES[reqPath];
-    if (apiHandler) {
-      return sendJson(res, apiHandler());
-    }
-
-    const normalized = reqPath === '/' ? '/index.html' : reqPath;
-    const filePath = path.join(PUBLIC_DIR, normalized);
-
-    if (!filePath.startsWith(PUBLIC_DIR)) {
-      return sendText(res, 'Forbidden', 403);
-    }
-
-    return serveStaticFile(res, filePath);
   });
 }
 
@@ -94,4 +162,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, createServer, API_ROUTES };
+module.exports = { server, createServer, GET_ROUTES, POST_ROUTES };
