@@ -34,6 +34,12 @@ npm run dev
 - `PATCH /api/tasks/:taskId/status`
 - `PATCH /api/policy-change-requests/:requestId/approve`
 
+### 任务完成约束（证据追溯）
+
+- 当任务状态更新为 `done` 时，任务必须包含至少 1 条 `evidenceRefs`。
+- 可在 `PATCH /api/tasks/:taskId/status` 请求体中携带 `evidenceRefs` 一并更新。
+- 若任务没有证据引用，`PATCH /api/tasks/:taskId/status` 会返回 `400`。
+
 ### 写接口鉴权与配额
 
 从当前版本开始，所有写接口（`POST/PATCH`）都要求请求头携带：
