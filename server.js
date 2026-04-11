@@ -154,6 +154,14 @@ function getWriteQuotaOverview(apiKey) {
   };
 }
 
+function setWriteQuotaHeaders(res, apiKey) {
+  const overview = getWriteQuotaOverview(apiKey);
+  res.setHeader('X-Write-Quota-Date', overview.date);
+  res.setHeader('X-Write-Quota-Limit', String(overview.quotaPerDay));
+  res.setHeader('X-Write-Quota-Used', String(overview.used));
+  res.setHeader('X-Write-Quota-Remaining', String(overview.remaining));
+}
+
 const POST_ROUTES = {
   '/api/workspaces': createWorkspace,
   '/api/documents': createDocument,
@@ -269,6 +277,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
     if (reqPath === '/api/write-usage') {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
+      setWriteQuotaHeaders(res, auth.apiKey);
       sendJson(res, getWriteQuotaOverview(auth.apiKey));
       return true;
     }
@@ -292,6 +301,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
     const payload = await parseJsonBody(req);
     const created = creator(payload);
     consumeWriteQuota(auth.apiKey);
+    setWriteQuotaHeaders(res, auth.apiKey);
     pushAuditLog({
       action: reqPath,
       method: 'POST',
@@ -310,6 +320,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const payload = await parseJsonBody(req);
       const updated = updateTaskStatus(taskStatusMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
         action: '/api/tasks/:taskId/status',
         method: 'PATCH',
@@ -327,6 +338,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const payload = await parseJsonBody(req);
       const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
         action: '/api/policy-change-requests/:requestId/approve',
         method: 'PATCH',
@@ -344,6 +356,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const payload = await parseJsonBody(req);
       const updated = rejectPolicyChangeRequest(policyRejectMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
         action: '/api/policy-change-requests/:requestId/reject',
         method: 'PATCH',

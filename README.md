@@ -88,6 +88,13 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 
 超限会返回 `429 write quota exceeded`。
 
+此外，成功通过鉴权的 `GET /api/write-usage` 与所有写入接口响应头都会返回：
+
+- `X-Write-Quota-Date`
+- `X-Write-Quota-Limit`
+- `X-Write-Quota-Used`
+- `X-Write-Quota-Remaining`
+
 ## 测试
 
 ```bash
