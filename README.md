@@ -19,6 +19,7 @@ npm run dev
 - `GET /api/tasks`
 - `GET /api/policies`
 - `GET /api/policy-change-requests`
+- `GET /api/audit-logs`
 - `GET /api/billing`
 - `GET /api/distillation/self`
 - `GET /api/distillation/expert`
@@ -28,12 +29,15 @@ npm run dev
 
 ### 列表接口查询参数（本轮新增）
 
-以下列表接口支持统一查询参数：`/api/workspaces`、`/api/documents`、`/api/tasks`、`/api/policies`、`/api/policy-change-requests`。
+以下列表接口支持统一查询参数：`/api/workspaces`、`/api/documents`、`/api/tasks`、`/api/policies`、`/api/policy-change-requests`、`/api/audit-logs`。
 
 - `q`：全文模糊匹配（在记录 JSON 文本上匹配）。
 - `status`：按 `status` 精确过滤（如 tasks 的 `running/done`）。
 - `workspaceId`：按 `workspaceId` 精确过滤（如 documents）。
 - `owner`：按 `owner` 精确过滤（如 workspaces）。
+- `action`：按 `action` 精确过滤（如 audit-logs 的接口动作）。
+- `method`：按 `method` 精确过滤（如 audit-logs 的 `POST/PATCH`）。
+- `actor`：按 `actor` 精确过滤（如 audit-logs 的调用 API Key）。
 - `sortBy`：按字段排序（如 `id`、`name`）。
 - `order`：排序方向，`asc`（默认）或 `desc`。
 - `offset`：从第 N 条开始（非负整数）。

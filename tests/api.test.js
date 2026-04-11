@@ -290,6 +290,28 @@ test('write usage endpoint returns current quota consumption', async (t) => {
   });
 });
 
+test('audit logs capture write operations and support list queries', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/workspaces', port, 'POST', {
+      name: '审计空间',
+      owner: 'audit-user'
+    }, headers);
+    assert.equal(createRes.status, 201);
+
+    const logsRes = await request('/api/audit-logs?actor=test-write-key&method=POST&limit=1&sortBy=id&order=desc', port);
+    const logs = JSON.parse(logsRes.body);
+
+    assert.equal(logsRes.status, 200);
+    assert.equal(Array.isArray(logs), true);
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0].actor, 'test-write-key');
+    assert.equal(logs[0].method, 'POST');
+    assert.equal(logs[0].action, '/api/workspaces');
+    assert.equal(typeof logs[0].createdAt, 'string');
+  });
+});
+
 test('write usage endpoint rejects request without api key', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/write-usage', port);

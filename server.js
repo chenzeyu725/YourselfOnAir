@@ -18,6 +18,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const WRITE_API_KEY = process.env.WRITE_API_KEY || 'dev-write-key';
 const WRITE_QUOTA_PER_DAY = Number(process.env.WRITE_QUOTA_PER_DAY || 20);
 const writeUsage = new Map();
+const auditLogs = [];
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -35,6 +36,7 @@ const GET_ROUTES = {
   '/api/tasks': () => state.tasks,
   '/api/policies': () => state.policies,
   '/api/policy-change-requests': () => state.policyChangeRequests,
+  '/api/audit-logs': () => auditLogs,
   '/api/distillation/self': () => state.distillation.self,
   '/api/distillation/expert': () => state.distillation.expert,
   '/api/provenance': () => state.distillation.provenance,
@@ -47,7 +49,8 @@ const QUERYABLE_LIST_ROUTES = new Set([
   '/api/documents',
   '/api/tasks',
   '/api/policies',
-  '/api/policy-change-requests'
+  '/api/policy-change-requests',
+  '/api/audit-logs'
 ]);
 
 function badRequest(message) {
@@ -71,8 +74,11 @@ function parseNonNegativeInt(value, field, max = Number.MAX_SAFE_INTEGER) {
 function applyListQuery(items, query) {
   const q = query.get('q');
   const status = query.get('status');
+  const action = query.get('action');
+  const method = query.get('method');
   const workspaceId = query.get('workspaceId');
   const owner = query.get('owner');
+  const actor = query.get('actor');
   const sortBy = query.get('sortBy');
   const orderRaw = query.get('order');
   const limit = parseNonNegativeInt(query.get('limit'), 'limit', 100);
@@ -87,11 +93,20 @@ function applyListQuery(items, query) {
   if (status) {
     result = result.filter((item) => item.status === status);
   }
+  if (action) {
+    result = result.filter((item) => item.action === action);
+  }
+  if (method) {
+    result = result.filter((item) => item.method === method);
+  }
   if (workspaceId) {
     result = result.filter((item) => item.workspaceId === workspaceId);
   }
   if (owner) {
     result = result.filter((item) => item.owner === owner);
+  }
+  if (actor) {
+    result = result.filter((item) => item.actor === actor);
   }
 
   if (sortBy) {
@@ -181,6 +196,17 @@ function consumeWriteQuota(apiKey) {
 
 function resetWriteUsage() {
   writeUsage.clear();
+  auditLogs.length = 0;
+}
+
+function pushAuditLog(entry) {
+  const log = {
+    id: `audit-${String(auditLogs.length + 1).padStart(4, '0')}`,
+    createdAt: new Date().toISOString(),
+    ...entry
+  };
+  auditLogs.push(log);
+  return log;
 }
 
 function authorizeWriteRequest(req) {
@@ -262,6 +288,12 @@ async function handleApi(req, res, reqPath, reqUrl) {
     const payload = await parseJsonBody(req);
     const created = creator(payload);
     consumeWriteQuota(auth.apiKey);
+    pushAuditLog({
+      action: reqPath,
+      method: 'POST',
+      actor: auth.apiKey,
+      targetId: created.id || null
+    });
     sendJson(res, created, 201);
     return true;
   }
@@ -274,6 +306,12 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const payload = await parseJsonBody(req);
       const updated = updateTaskStatus(taskStatusMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
+      pushAuditLog({
+        action: '/api/tasks/:taskId/status',
+        method: 'PATCH',
+        actor: auth.apiKey,
+        targetId: updated.id
+      });
       sendJson(res, updated);
       return true;
     }
@@ -285,6 +323,12 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const payload = await parseJsonBody(req);
       const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
+      pushAuditLog({
+        action: '/api/policy-change-requests/:requestId/approve',
+        method: 'PATCH',
+        actor: auth.apiKey,
+        targetId: updated.id
+      });
       sendJson(res, updated);
       return true;
     }
@@ -296,6 +340,12 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const payload = await parseJsonBody(req);
       const updated = rejectPolicyChangeRequest(policyRejectMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
+      pushAuditLog({
+        action: '/api/policy-change-requests/:requestId/reject',
+        method: 'PATCH',
+        actor: auth.apiKey,
+        targetId: updated.id
+      });
       sendJson(res, updated);
       return true;
     }
