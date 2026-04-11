@@ -312,6 +312,9 @@ test('write usage endpoint returns current quota consumption', async (t) => {
     const beforeRes = await request('/api/write-usage', port, 'GET', null, { 'x-api-key': 'test-write-key' });
     const before = JSON.parse(beforeRes.body);
     assert.equal(beforeRes.status, 200);
+    assert.equal(beforeRes.headers['x-write-quota-limit'], '3');
+    assert.equal(beforeRes.headers['x-write-quota-used'], '0');
+    assert.equal(beforeRes.headers['x-write-quota-remaining'], '3');
     assert.equal(before.used, 0);
     assert.equal(before.remaining, 3);
 
@@ -324,9 +327,25 @@ test('write usage endpoint returns current quota consumption', async (t) => {
     const afterRes = await request('/api/write-usage', port, 'GET', null, { 'x-api-key': 'test-write-key' });
     const after = JSON.parse(afterRes.body);
     assert.equal(afterRes.status, 200);
+    assert.equal(afterRes.headers['x-write-quota-used'], '1');
+    assert.equal(afterRes.headers['x-write-quota-remaining'], '2');
     assert.equal(after.used, 1);
     assert.equal(after.remaining, 2);
     assert.equal(after.quotaPerDay, 3);
+  });
+});
+
+test('write requests return quota headers after usage is consumed', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '校验响应头'
+    }, { 'x-api-key': 'test-write-key' });
+
+    assert.equal(res.status, 201);
+    assert.equal(res.headers['x-write-quota-limit'], '3');
+    assert.equal(res.headers['x-write-quota-used'], '1');
+    assert.equal(res.headers['x-write-quota-remaining'], '2');
   });
 });
 
