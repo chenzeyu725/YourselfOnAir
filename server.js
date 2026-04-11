@@ -41,6 +41,16 @@ const GET_ROUTES = {
   '/api/billing': () => state.billing
 };
 
+function getWriteQuotaOverview(apiKey) {
+  const used = getWriteUsage(apiKey);
+  return {
+    date: new Date().toISOString().slice(0, 10),
+    quotaPerDay: WRITE_QUOTA_PER_DAY,
+    used,
+    remaining: Math.max(WRITE_QUOTA_PER_DAY - used, 0)
+  };
+}
+
 const POST_ROUTES = {
   '/api/workspaces': createWorkspace,
   '/api/documents': createDocument,
@@ -141,6 +151,13 @@ function serveStaticFile(res, filePath) {
 
 async function handleApi(req, res, reqPath) {
   if (req.method === 'GET') {
+    if (reqPath === '/api/write-usage') {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      sendJson(res, getWriteQuotaOverview(auth.apiKey));
+      return true;
+    }
+
     const getter = GET_ROUTES[reqPath];
     if (!getter) return false;
     sendJson(res, getter());
@@ -235,6 +252,7 @@ module.exports = {
   POST_ROUTES,
   authorizeWriteRequest,
   getWriteUsage,
+  getWriteQuotaOverview,
   consumeWriteQuota,
   resetWriteUsage
 };

@@ -232,6 +232,38 @@ test('returns 400 when status patch payload is empty', async (t) => {
   });
 });
 
+test('write usage endpoint returns current quota consumption', async (t) => {
+  await withServer(t, async (port) => {
+    const beforeRes = await request('/api/write-usage', port, 'GET', null, { 'x-api-key': 'test-write-key' });
+    const before = JSON.parse(beforeRes.body);
+    assert.equal(beforeRes.status, 200);
+    assert.equal(before.used, 0);
+    assert.equal(before.remaining, 2);
+
+    const createRes = await request('/api/workspaces', port, 'POST', {
+      name: '配额测试空间',
+      owner: 'qa'
+    }, { 'x-api-key': 'test-write-key' });
+    assert.equal(createRes.status, 201);
+
+    const afterRes = await request('/api/write-usage', port, 'GET', null, { 'x-api-key': 'test-write-key' });
+    const after = JSON.parse(afterRes.body);
+    assert.equal(afterRes.status, 200);
+    assert.equal(after.used, 1);
+    assert.equal(after.remaining, 1);
+    assert.equal(after.quotaPerDay, 2);
+  });
+});
+
+test('write usage endpoint rejects request without api key', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/write-usage', port);
+    const parsed = JSON.parse(res.body);
+    assert.equal(res.status, 401);
+    assert.equal(parsed.error, 'unauthorized: missing or invalid x-api-key');
+  });
+});
+
 test('create and approve policy change request', async (t) => {
   await withServer(t, async (port) => {
     const createRes = await request('/api/policy-change-requests', port, 'POST', {
