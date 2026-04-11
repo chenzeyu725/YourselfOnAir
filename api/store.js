@@ -36,6 +36,14 @@ function notFound(message) {
   throw err;
 }
 
+function normalizeEvidenceRefs(evidenceRefs, fieldName = 'evidenceRefs') {
+  if (evidenceRefs === undefined) return undefined;
+  if (!Array.isArray(evidenceRefs) || evidenceRefs.some((ref) => typeof ref !== 'string' || ref.trim() === '')) {
+    badRequest(`${fieldName} must be an array of non-empty strings when provided`);
+  }
+  return evidenceRefs.map((ref) => ref.trim());
+}
+
 function createWorkspace(payload) {
   if (!payload?.name || !payload?.owner) {
     badRequest('name and owner are required');
@@ -93,12 +101,14 @@ function createTask(payload) {
     badRequest('kind must be one of: chat, doc, analysis');
   }
 
+  const normalizedEvidenceRefs = normalizeEvidenceRefs(payload.evidenceRefs);
+
   const item = {
     id: nextId('task', state.tasks),
     kind: payload.kind,
     prompt: payload.prompt,
     status: 'queued',
-    evidenceRefs: Array.isArray(payload.evidenceRefs) ? payload.evidenceRefs : []
+    evidenceRefs: normalizedEvidenceRefs || []
   };
 
   state.tasks.push(item);
@@ -123,7 +133,9 @@ function createTaskFromTemplate(payload) {
   }
 
   const prompt = (payload.prompt || template.promptTemplate).replaceAll('{workspaceName}', workspace.name);
-  const evidenceRefs = Array.isArray(payload.evidenceRefs) ? payload.evidenceRefs : template.defaultEvidenceRefs;
+  const payloadEvidenceRefs = normalizeEvidenceRefs(payload.evidenceRefs);
+  const templateEvidenceRefs = normalizeEvidenceRefs(template.defaultEvidenceRefs, 'template.defaultEvidenceRefs') || [];
+  const evidenceRefs = payloadEvidenceRefs || templateEvidenceRefs;
 
   const item = {
     id: nextId('task', state.tasks),
@@ -152,11 +164,9 @@ function updateTaskStatus(taskId, payload) {
     badRequest('status must be one of: queued, running, done, failed');
   }
 
-  if (evidenceRefs !== undefined) {
-    if (!Array.isArray(evidenceRefs) || evidenceRefs.some((ref) => typeof ref !== 'string' || ref.trim() === '')) {
-      badRequest('evidenceRefs must be an array of non-empty strings when provided');
-    }
-    task.evidenceRefs = evidenceRefs;
+  const normalizedEvidenceRefs = normalizeEvidenceRefs(evidenceRefs);
+  if (normalizedEvidenceRefs !== undefined) {
+    task.evidenceRefs = normalizedEvidenceRefs;
   }
 
   const nextStatus = status === undefined ? task.status : status;

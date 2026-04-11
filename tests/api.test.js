@@ -189,6 +189,34 @@ test('returns 404 when creating task from unknown template', async (t) => {
   });
 });
 
+test('returns 400 when creating task with invalid evidenceRefs', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '输出结论',
+      evidenceRefs: ['doc-001', '']
+    }, { 'x-api-key': 'test-write-key' });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'evidenceRefs must be an array of non-empty strings when provided');
+  });
+});
+
+test('trims evidenceRefs when creating task', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '输出结论',
+      evidenceRefs: ['  doc-001#p2  ']
+    }, { 'x-api-key': 'test-write-key' });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 201);
+    assert.deepEqual(parsed.evidenceRefs, ['doc-001#p2']);
+  });
+});
+
 test('returns 400 for invalid list query params', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/tasks?limit=-1', port);
