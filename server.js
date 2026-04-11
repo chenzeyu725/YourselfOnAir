@@ -9,7 +9,8 @@ const {
   createPolicy,
   updateTaskStatus,
   createPolicyChangeRequest,
-  approvePolicyChangeRequest
+  approvePolicyChangeRequest,
+  rejectPolicyChangeRequest
 } = require('./api/store');
 
 const PORT = process.env.PORT || 3000;
@@ -194,6 +195,17 @@ async function handleApi(req, res, reqPath) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
+      consumeWriteQuota(auth.apiKey);
+      sendJson(res, updated);
+      return true;
+    }
+
+    const policyRejectMatch = reqPath.match(/^\/api\/policy-change-requests\/(pcr-\d+)\/reject$/);
+    if (policyRejectMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      const payload = await parseJsonBody(req);
+      const updated = rejectPolicyChangeRequest(policyRejectMatch[1], payload);
       consumeWriteQuota(auth.apiKey);
       sendJson(res, updated);
       return true;

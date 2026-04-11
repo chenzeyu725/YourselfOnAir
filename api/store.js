@@ -7,7 +7,7 @@ const allowedSourceTypes = new Set(['document', 'chat', 'image', 'log']);
 const allowedTaskKinds = new Set(['chat', 'doc', 'analysis']);
 const allowedTaskStatus = new Set(['queued', 'running', 'done', 'failed']);
 const allowedAudience = new Set(['internal', 'external', 'partner']);
-const allowedPolicyChangeStatus = new Set(['pending', 'approved']);
+const allowedPolicyChangeStatus = new Set(['pending', 'approved', 'rejected']);
 
 const nowDate = () => new Date().toISOString().slice(0, 10);
 
@@ -173,12 +173,44 @@ function createPolicyChangeRequest(payload) {
     status: 'pending',
     requestedBy: payload.requestedBy,
     approvedBy: null,
+    rejectedBy: null,
+    rejectReason: null,
     requestedAt: nowDate(),
-    approvedAt: null
+    approvedAt: null,
+    rejectedAt: null
   };
 
   state.policyChangeRequests.push(item);
   return item;
+}
+
+function rejectPolicyChangeRequest(requestId, payload) {
+  const req = state.policyChangeRequests.find((x) => x.id === requestId);
+  if (!req) notFound('policy change request not found');
+
+  const { status, rejectedBy, rejectReason } = payload || {};
+  if (!allowedPolicyChangeStatus.has(status)) {
+    badRequest('status must be one of: pending, approved, rejected');
+  }
+  if (status !== 'rejected') {
+    badRequest('only rejected status is supported for PATCH');
+  }
+  if (!rejectedBy) {
+    badRequest('rejectedBy is required');
+  }
+  if (!rejectReason) {
+    badRequest('rejectReason is required');
+  }
+  if (req.status !== 'pending') {
+    badRequest(`cannot reject request in ${req.status} status`);
+  }
+
+  req.status = 'rejected';
+  req.rejectedBy = rejectedBy;
+  req.rejectReason = rejectReason;
+  req.rejectedAt = nowDate();
+
+  return req;
 }
 
 function approvePolicyChangeRequest(requestId, payload) {
@@ -187,7 +219,7 @@ function approvePolicyChangeRequest(requestId, payload) {
 
   const { status, approvedBy } = payload || {};
   if (!allowedPolicyChangeStatus.has(status)) {
-    badRequest('status must be one of: pending, approved');
+    badRequest('status must be one of: pending, approved, rejected');
   }
   if (status !== 'approved') {
     badRequest('only approved status is supported for PATCH');
@@ -195,8 +227,8 @@ function approvePolicyChangeRequest(requestId, payload) {
   if (!approvedBy) {
     badRequest('approvedBy is required');
   }
-  if (req.status === 'approved') {
-    badRequest('request already approved');
+  if (req.status !== 'pending') {
+    badRequest(`cannot approve request in ${req.status} status`);
   }
 
   const policy = state.policies.find((p) => p.id === req.policyId);
@@ -220,5 +252,6 @@ module.exports = {
   createPolicy,
   updateTaskStatus,
   createPolicyChangeRequest,
-  approvePolicyChangeRequest
+  approvePolicyChangeRequest,
+  rejectPolicyChangeRequest
 };
