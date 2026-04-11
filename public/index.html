@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YourselfOnAir MVP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>YourselfOnAir · MVP 控制台</h1>
+      <div class="nav">
+        <span>Dashboard</span><span>Workspaces</span><span>Data Hub</span>
+        <span>Distill Studio</span><span>Chat & Tasks</span><span>Docs Factory</span>
+        <span>Policy Center</span><span>Billing</span>
+      </div>
+      <small>当前为零依赖可运行原型，用于快速验证信息架构与工作流。</small>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>1) Dashboard</h2>
+        <p class="muted">今日状态：<span class="ok">服务健康</span>，任务与数据已可视化。</p>
+      </section>
+
+      <section class="card">
+        <h2>2) Workspaces</h2>
+        <ul id="workspaces"></ul>
+      </section>
+
+      <section class="card">
+        <h2>3) Data Hub</h2>
+        <ul id="documents"></ul>
+      </section>
+
+      <section class="card">
+        <h2>4) Distill Studio</h2>
+        <p><span class="badge">Self Distillation</span> <span class="badge">Expert Distillation</span></p>
+        <p class="muted">支持后续接入真实蒸馏管线与模型网关。</p>
+      </section>
+
+      <section class="card">
+        <h2>5) Chat & Tasks</h2>
+        <ul id="tasks"></ul>
+      </section>
+
+      <section class="card">
+        <h2>6) Docs Factory</h2>
+        <p class="muted">当前已建模文档任务类型，可扩展 Word/PDF/PPT/Excel 导出流程。</p>
+      </section>
+
+      <section class="card">
+        <h2>7) Policy Center</h2>
+        <ul id="policies"></ul>
+      </section>
+
+      <section class="card">
+        <h2>8) Billing</h2>
+        <p>Plan: <strong id="plan">-</strong></p>
+        <p>Storage: <strong id="storage">-</strong></p>
+        <p>Renew Date: <strong id="renew">-</strong></p>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
