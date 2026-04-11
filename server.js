@@ -40,6 +40,10 @@ const server = http.createServer((req, res) => {
   if (reqPath === '/api/documents') return json(res, data.documents);
   if (reqPath === '/api/tasks') return json(res, data.tasks);
   if (reqPath === '/api/policies') return json(res, data.policies);
+  if (reqPath === '/api/distillation/self') return json(res, data.distillation.self);
+  if (reqPath === '/api/distillation/expert') return json(res, data.distillation.expert);
+  if (reqPath === '/api/provenance') return json(res, data.distillation.provenance);
+  if (reqPath === '/api/fusion/preview') return json(res, data.fusionPreview);
   if (reqPath === '/api/billing') return json(res, data.billing);
 
   const normalized = reqPath === '/' ? '/index.html' : reqPath;

@@ -8,12 +8,14 @@
   </head>
   <body>
     <header>
+      <h1>YourselfOnAir · 双引擎蒸馏 MVP</h1>
       <h1>YourselfOnAir · MVP 控制台</h1>
       <div class="nav">
         <span>Dashboard</span><span>Workspaces</span><span>Data Hub</span>
         <span>Distill Studio</span><span>Chat & Tasks</span><span>Docs Factory</span>
         <span>Policy Center</span><span>Billing</span>
       </div>
+      <small>已引入 Self/Expert 双引擎、证据追溯与融合权重预览。</small>
       <small>当前为零依赖可运行原型，用于快速验证信息架构与工作流。</small>
     </header>
 
@@ -34,6 +36,23 @@
       </section>
 
       <section class="card">
+        <h2>4) Distill Studio · Self</h2>
+        <p><span class="badge">Work Memory</span> <span class="badge">Work Persona</span></p>
+        <ul id="self-workflow"></ul>
+      </section>
+
+      <section class="card">
+        <h2>5) Distill Studio · Expert</h2>
+        <p><span class="badge">5-Layer Lens</span></p>
+        <h3>心智模型</h3>
+        <ul id="expert-models"></ul>
+        <h3>诚实边界</h3>
+        <ul id="expert-boundaries"></ul>
+      </section>
+
+      <section class="card">
+        <h2>6) Chat & Tasks</h2>
+        <ul id="tasks"></ul>
         <h2>4) Distill Studio</h2>
         <p><span class="badge">Self Distillation</span> <span class="badge">Expert Distillation</span></p>
         <p class="muted">支持后续接入真实蒸馏管线与模型网关。</p>
@@ -55,6 +74,19 @@
       </section>
 
       <section class="card">
+        <h2>8) Provenance</h2>
+        <p>Pattern: <strong id="provenance-pattern">-</strong></p>
+        <p>Rule: <strong id="provenance-rule">-</strong></p>
+      </section>
+
+      <section class="card">
+        <h2>9) Fusion Preview</h2>
+        <p>Weights: <strong id="fusion-weights">-</strong></p>
+        <p class="muted" id="fusion-output">-</p>
+      </section>
+
+      <section class="card">
+        <h2>10) Billing</h2>
         <h2>8) Billing</h2>
         <p>Plan: <strong id="plan">-</strong></p>
         <p>Storage: <strong id="storage">-</strong></p>
