@@ -110,7 +110,11 @@ function updateTaskStatus(taskId, payload) {
   if (!task) notFound('task not found');
 
   const { status, evidenceRefs } = payload || {};
-  if (!allowedTaskStatus.has(status)) {
+  if (status === undefined && evidenceRefs === undefined) {
+    badRequest('at least one of status or evidenceRefs is required');
+  }
+
+  if (status !== undefined && !allowedTaskStatus.has(status)) {
     badRequest('status must be one of: queued, running, done, failed');
   }
 
@@ -121,11 +125,14 @@ function updateTaskStatus(taskId, payload) {
     task.evidenceRefs = evidenceRefs;
   }
 
-  if (status === 'done' && (!Array.isArray(task.evidenceRefs) || task.evidenceRefs.length === 0)) {
+  const nextStatus = status === undefined ? task.status : status;
+  if (nextStatus === 'done' && (!Array.isArray(task.evidenceRefs) || task.evidenceRefs.length === 0)) {
     badRequest('task without evidenceRefs cannot be marked as done');
   }
 
-  task.status = status;
+  if (status !== undefined) {
+    task.status = status;
+  }
   return task;
 }
 

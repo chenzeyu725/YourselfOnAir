@@ -189,6 +189,49 @@ test('returns 400 when evidenceRefs payload is invalid', async (t) => {
   });
 });
 
+test('updates evidenceRefs without changing status', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '补充证据'
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(createRes.body);
+
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { evidenceRefs: ['doc-009#p2'] },
+      { 'x-api-key': 'test-write-key' }
+    );
+    const updated = JSON.parse(patchRes.body);
+    assert.equal(patchRes.status, 200);
+    assert.equal(updated.status, 'queued');
+    assert.deepEqual(updated.evidenceRefs, ['doc-009#p2']);
+  });
+});
+
+test('returns 400 when status patch payload is empty', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '空更新'
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(createRes.body);
+
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      {},
+      { 'x-api-key': 'test-write-key' }
+    );
+    const parsed = JSON.parse(patchRes.body);
+    assert.equal(patchRes.status, 400);
+    assert.equal(parsed.error, 'at least one of status or evidenceRefs is required');
+  });
+});
+
 test('create and approve policy change request', async (t) => {
   await withServer(t, async (port) => {
     const createRes = await request('/api/policy-change-requests', port, 'POST', {

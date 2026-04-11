@@ -38,6 +38,8 @@ npm run dev
 
 - 当任务状态更新为 `done` 时，任务必须包含至少 1 条 `evidenceRefs`。
 - 可在 `PATCH /api/tasks/:taskId/status` 请求体中携带 `evidenceRefs` 一并更新。
+- `PATCH /api/tasks/:taskId/status` 支持部分更新：可仅更新 `status`、仅更新 `evidenceRefs`，或同时更新两者。
+- 若请求体同时缺少 `status` 与 `evidenceRefs`，接口会返回 `400`。
 - 若任务没有证据引用，`PATCH /api/tasks/:taskId/status` 会返回 `400`。
 
 ### 写接口鉴权与配额
