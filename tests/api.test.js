@@ -55,6 +55,19 @@ test('workspaces endpoint returns list', async (t) => {
   });
 });
 
+test('workspaces endpoint supports q/owner/sort/limit query', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/workspaces?owner=chen&q=%E9%9D%92&sortBy=name&order=desc&limit=1', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(Array.isArray(parsed), true);
+    assert.equal(parsed.length, 1);
+    assert.equal(parsed[0].owner, 'chen');
+    assert.ok(parsed[0].name.includes('青'));
+  });
+});
+
 test('distillation endpoints expose self and expert structures', async (t) => {
   await withServer(t, async (port) => {
     const selfRes = await request('/api/distillation/self', port);
@@ -121,6 +134,28 @@ test('create task and update status via PATCH', async (t) => {
 
     assert.equal(patchRes.status, 200);
     assert.equal(updated.status, 'running');
+  });
+});
+
+test('tasks endpoint supports status filter and offset pagination', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks?status=running&sortBy=id&order=asc&offset=0&limit=1', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(Array.isArray(parsed), true);
+    assert.equal(parsed.length, 1);
+    assert.equal(parsed[0].status, 'running');
+  });
+});
+
+test('returns 400 for invalid list query params', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks?limit=-1', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'limit must be a non-negative integer');
   });
 });
 

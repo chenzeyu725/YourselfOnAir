@@ -42,6 +42,90 @@ const GET_ROUTES = {
   '/api/billing': () => state.billing
 };
 
+const QUERYABLE_LIST_ROUTES = new Set([
+  '/api/workspaces',
+  '/api/documents',
+  '/api/tasks',
+  '/api/policies',
+  '/api/policy-change-requests'
+]);
+
+function badRequest(message) {
+  const err = new Error(message);
+  err.status = 400;
+  return err;
+}
+
+function parseNonNegativeInt(value, field, max = Number.MAX_SAFE_INTEGER) {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (!Number.isInteger(num) || num < 0) {
+    throw badRequest(`${field} must be a non-negative integer`);
+  }
+  if (num > max) {
+    throw badRequest(`${field} must be <= ${max}`);
+  }
+  return num;
+}
+
+function applyListQuery(items, query) {
+  const q = query.get('q');
+  const status = query.get('status');
+  const workspaceId = query.get('workspaceId');
+  const owner = query.get('owner');
+  const sortBy = query.get('sortBy');
+  const orderRaw = query.get('order');
+  const limit = parseNonNegativeInt(query.get('limit'), 'limit', 100);
+  const offset = parseNonNegativeInt(query.get('offset'), 'offset');
+
+  let result = [...items];
+
+  if (q) {
+    const normalized = q.toLowerCase();
+    result = result.filter((item) => JSON.stringify(item).toLowerCase().includes(normalized));
+  }
+  if (status) {
+    result = result.filter((item) => item.status === status);
+  }
+  if (workspaceId) {
+    result = result.filter((item) => item.workspaceId === workspaceId);
+  }
+  if (owner) {
+    result = result.filter((item) => item.owner === owner);
+  }
+
+  if (sortBy) {
+    const sample = result.find((item) => Object.prototype.hasOwnProperty.call(item, sortBy));
+    if (!sample) {
+      throw badRequest(`sortBy field not found: ${sortBy}`);
+    }
+
+    const order = orderRaw || 'asc';
+    if (order !== 'asc' && order !== 'desc') {
+      throw badRequest('order must be asc or desc');
+    }
+
+    result.sort((a, b) => {
+      const av = a[sortBy];
+      const bv = b[sortBy];
+      if (av === bv) return 0;
+      if (av === undefined || av === null) return 1;
+      if (bv === undefined || bv === null) return -1;
+      if (av > bv) return order === 'asc' ? 1 : -1;
+      return order === 'asc' ? -1 : 1;
+    });
+  }
+
+  if (offset !== null) {
+    result = result.slice(offset);
+  }
+  if (limit !== null) {
+    result = result.slice(0, limit);
+  }
+
+  return result;
+}
+
 function getWriteQuotaOverview(apiKey) {
   const used = getWriteUsage(apiKey);
   return {
@@ -150,7 +234,7 @@ function serveStaticFile(res, filePath) {
   });
 }
 
-async function handleApi(req, res, reqPath) {
+async function handleApi(req, res, reqPath, reqUrl) {
   if (req.method === 'GET') {
     if (reqPath === '/api/write-usage') {
       const auth = authorizeWriteRequest(req);
@@ -161,7 +245,12 @@ async function handleApi(req, res, reqPath) {
 
     const getter = GET_ROUTES[reqPath];
     if (!getter) return false;
-    sendJson(res, getter());
+    const payload = getter();
+    if (QUERYABLE_LIST_ROUTES.has(reqPath) && Array.isArray(payload)) {
+      sendJson(res, applyListQuery(payload, reqUrl.searchParams));
+      return true;
+    }
+    sendJson(res, payload);
     return true;
   }
 
@@ -226,11 +315,13 @@ function createServer() {
   return http.createServer(async (req, res) => {
     try {
       const rawUrl = decodeURIComponent(req.url || '/');
-      const reqPath = new URL(req.url, `http://${req.headers.host}`).pathname;
 
       if (rawUrl.includes('..')) return sendText(res, 'Forbidden', 403);
 
-      const apiHandled = await handleApi(req, res, reqPath);
+      const reqUrl = new URL(req.url, `http://${req.headers.host}`);
+      const reqPath = reqUrl.pathname;
+
+      const apiHandled = await handleApi(req, res, reqPath, reqUrl);
       if (apiHandled) return;
 
       const normalized = reqPath === '/' ? '/index.html' : reqPath;
