@@ -114,6 +114,10 @@ function updateTaskStatus(taskId, payload) {
     badRequest('status must be one of: queued, running, done, failed');
   }
 
+  if (status === 'done' && (!Array.isArray(task.evidenceRefs) || task.evidenceRefs.length === 0)) {
+    badRequest('task without evidenceRefs cannot be marked as done');
+  }
+
   task.status = status;
   return task;
 }

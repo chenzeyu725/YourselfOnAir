@@ -124,6 +124,51 @@ test('create task and update status via PATCH', async (t) => {
   });
 });
 
+test('returns 400 when marking task done without evidenceRefs', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '输出结论'
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(createRes.body);
+
+    assert.equal(createRes.status, 201);
+
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { status: 'done' },
+      { 'x-api-key': 'test-write-key' }
+    );
+    const parsed = JSON.parse(patchRes.body);
+    assert.equal(patchRes.status, 400);
+    assert.equal(parsed.error, 'task without evidenceRefs cannot be marked as done');
+  });
+});
+
+test('allows marking task done when evidenceRefs exists', async (t) => {
+  await withServer(t, async (port) => {
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '输出结论',
+      evidenceRefs: ['doc-001#p3']
+    }, { 'x-api-key': 'test-write-key' });
+    const created = JSON.parse(createRes.body);
+
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { status: 'done' },
+      { 'x-api-key': 'test-write-key' }
+    );
+    const updated = JSON.parse(patchRes.body);
+    assert.equal(patchRes.status, 200);
+    assert.equal(updated.status, 'done');
+  });
+});
+
 test('create and approve policy change request', async (t) => {
   await withServer(t, async (port) => {
     const createRes = await request('/api/policy-change-requests', port, 'POST', {
