@@ -27,7 +27,7 @@ npm run dev
 - `GET /api/provenance`
 - `GET /api/fusion/preview`
 - `GET /api/write-usage`（需 `x-api-key`，返回今日写配额使用情况）
-- `GET /api/dashboard/summary`（需 `x-api-key`，返回 Dashboard 聚合统计与配额概览）
+- `GET /api/dashboard/summary`（需 `x-api-key`，返回 Dashboard 聚合统计与配额概览；支持 `workspaceId`、`recentAuditLimit` 查询参数）
 
 ### 列表接口查询参数（本轮新增）
 
@@ -99,6 +99,15 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `X-Write-Quota-Limit`
 - `X-Write-Quota-Used`
 - `X-Write-Quota-Remaining`
+
+### Dashboard 汇总增强（本轮新增）
+
+- `GET /api/dashboard/summary?workspaceId=<id>`：返回指定工作空间视角的 tasks/documents/counts 聚合。
+- `recentAuditLimit`：控制 `recentAuditLogs` 返回条数，默认 `5`，最大 `50`。
+- 响应新增字段：
+  - `scope.workspaceId`
+  - `completionRate`（任务完成率，`done / tasks`；当任务数为 0 时返回 `null`）
+  - `recentAuditLogs`（最近写操作审计记录，默认倒序返回最近 5 条）
 
 ## 测试
 

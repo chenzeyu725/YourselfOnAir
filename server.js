@@ -163,27 +163,54 @@ function getWriteQuotaOverview(apiKey) {
   };
 }
 
-function getDashboardSummary(apiKey) {
-  const tasksByStatus = state.tasks.reduce((acc, task) => {
+function getDashboardSummary(apiKey, options = {}) {
+  const workspaceId = options.workspaceId || null;
+  const recentAuditLimit = options.recentAuditLimit || 5;
+
+  if (workspaceId && !state.workspaces.some((item) => item.id === workspaceId)) {
+    throw badRequest('workspaceId is invalid');
+  }
+
+  const scopedWorkspaces = workspaceId
+    ? state.workspaces.filter((item) => item.id === workspaceId)
+    : state.workspaces;
+  const scopedDocuments = workspaceId
+    ? state.documents.filter((item) => item.workspaceId === workspaceId)
+    : state.documents;
+  const scopedTasks = workspaceId
+    ? state.tasks.filter((item) => item.workspaceId === workspaceId)
+    : state.tasks;
+  const scopedPolicyChangeRequests = workspaceId
+    ? state.policyChangeRequests.filter((item) => item.workspaceId === workspaceId)
+    : state.policyChangeRequests;
+
+  const tasksByStatus = scopedTasks.reduce((acc, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1;
     return acc;
   }, {});
-  const documentsByStatus = state.documents.reduce((acc, doc) => {
+  const documentsByStatus = scopedDocuments.reduce((acc, doc) => {
     acc[doc.status] = (acc[doc.status] || 0) + 1;
     return acc;
   }, {});
+  const doneTasks = tasksByStatus.done || 0;
+  const completionRate = scopedTasks.length === 0 ? null : Number((doneTasks / scopedTasks.length).toFixed(4));
 
   return {
     generatedAt: new Date().toISOString(),
+    scope: {
+      workspaceId
+    },
     counts: {
-      workspaces: state.workspaces.length,
-      documents: state.documents.length,
-      tasks: state.tasks.length,
+      workspaces: scopedWorkspaces.length,
+      documents: scopedDocuments.length,
+      tasks: scopedTasks.length,
       policies: state.policies.length,
-      policyChangeRequests: state.policyChangeRequests.length
+      policyChangeRequests: scopedPolicyChangeRequests.length
     },
     tasksByStatus,
     documentsByStatus,
+    completionRate,
+    recentAuditLogs: auditLogs.slice(-recentAuditLimit).reverse(),
     writeQuota: getWriteQuotaOverview(apiKey)
   };
 }
@@ -355,8 +382,13 @@ async function handleApi(req, res, reqPath, reqUrl) {
     if (reqPath === '/api/dashboard/summary') {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
+      const workspaceId = reqUrl.searchParams.get('workspaceId');
+      const recentAuditLimit = parseNonNegativeInt(reqUrl.searchParams.get('recentAuditLimit'), 'recentAuditLimit', 50);
       setWriteQuotaHeaders(res, auth.apiKey);
-      sendJson(res, getDashboardSummary(auth.apiKey));
+      sendJson(res, getDashboardSummary(auth.apiKey, {
+        workspaceId,
+        recentAuditLimit: recentAuditLimit === null ? 5 : recentAuditLimit
+      }));
       return true;
     }
 

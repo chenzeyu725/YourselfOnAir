@@ -587,6 +587,56 @@ test('dashboard summary returns aggregated counts and quota', async (t) => {
   });
 });
 
+test('dashboard summary supports workspace scoped view and completion rate', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: 'workspace dashboard 样本',
+      workspaceId: 'ws-001',
+      evidenceRefs: ['doc-001#p1']
+    }, headers);
+    const created = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { status: 'done' },
+      headers
+    );
+    assert.equal(patchRes.status, 200);
+
+    const res = await request(
+      '/api/dashboard/summary?workspaceId=ws-001&recentAuditLimit=1',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(parsed.scope.workspaceId, 'ws-001');
+    assert.equal(parsed.counts.workspaces, 1);
+    assert.equal(parsed.tasksByStatus.done >= 1, true);
+    assert.equal(parsed.completionRate, 1);
+    assert.equal(Array.isArray(parsed.recentAuditLogs), true);
+    assert.equal(parsed.recentAuditLogs.length, 1);
+  });
+});
+
+test('dashboard summary returns 400 when workspaceId is invalid', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/dashboard/summary?workspaceId=ws-404', port, 'GET', null, { 'x-api-key': 'test-write-key' });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'workspaceId is invalid');
+  });
+});
+
 test('dashboard summary rejects request without api key', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/dashboard/summary', port);
