@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const {
   state,
+  hydrateState,
+  getStateSnapshot,
   createWorkspace,
   createDocument,
   createTask,
@@ -23,6 +25,10 @@ const WRITE_API_KEY = process.env.WRITE_API_KEY || 'dev-write-key';
 const WRITE_QUOTA_PER_DAY = Number(process.env.WRITE_QUOTA_PER_DAY || 20);
 const writeUsage = new Map();
 const auditLogs = [];
+
+function getStateFile() {
+  return process.env.STATE_FILE || '';
+}
 
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -249,6 +255,27 @@ function pushAuditLog(entry) {
   return log;
 }
 
+function loadStateFromDisk() {
+  const stateFile = getStateFile();
+  if (!stateFile) return;
+  if (!fs.existsSync(stateFile)) return;
+  const content = fs.readFileSync(stateFile, 'utf-8');
+  if (!content.trim()) return;
+  const parsed = JSON.parse(content);
+  hydrateState(parsed);
+}
+
+function persistStateToDisk() {
+  const stateFile = getStateFile();
+  if (!stateFile) return;
+  const snapshot = getStateSnapshot();
+  const dir = path.dirname(stateFile);
+  fs.mkdirSync(dir, { recursive: true });
+  const tempFile = `${stateFile}.tmp`;
+  fs.writeFileSync(tempFile, JSON.stringify(snapshot, null, 2), 'utf-8');
+  fs.renameSync(tempFile, stateFile);
+}
+
 function authorizeWriteRequest(req) {
   const apiKey = req.headers['x-api-key'];
   if (!apiKey || apiKey !== WRITE_API_KEY) {
@@ -336,6 +363,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
     if (!auth.ok) throw auth.error;
     const payload = await parseJsonBody(req);
     const created = creator(payload);
+    persistStateToDisk();
     consumeWriteQuota(auth.apiKey);
     setWriteQuotaHeaders(res, auth.apiKey);
     pushAuditLog({
@@ -355,6 +383,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = updateTaskStatus(taskStatusMatch[1], payload);
+      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -373,6 +402,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
+      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -391,6 +421,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = rejectPolicyChangeRequest(policyRejectMatch[1], payload);
+      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -412,6 +443,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
       const deleted = deleteTask(taskDeleteMatch[1]);
+      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -429,6 +461,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
       const deleted = deleteDocument(documentDeleteMatch[1]);
+      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -447,6 +480,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const force = reqUrl.searchParams.get('force') === 'true';
       const deleted = deleteWorkspace(workspaceDeleteMatch[1], { force });
+      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -499,6 +533,8 @@ function createServer() {
   });
 }
 
+loadStateFromDisk();
+
 const server = createServer();
 
 if (require.main === module) {
@@ -516,5 +552,7 @@ module.exports = {
   getWriteUsage,
   getWriteQuotaOverview,
   consumeWriteQuota,
-  resetWriteUsage
+  resetWriteUsage,
+  loadStateFromDisk,
+  persistStateToDisk
 };

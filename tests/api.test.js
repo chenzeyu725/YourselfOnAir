@@ -1,9 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 process.env.WRITE_API_KEY = 'test-write-key';
 process.env.WRITE_QUOTA_PER_DAY = '3';
-const { createServer, resetWriteUsage } = require('../server');
+const { createServer, resetWriteUsage, loadStateFromDisk, persistStateToDisk } = require('../server');
+const { state, resetState } = require('../api/store');
 
 function request(pathname, port, method = 'GET', body = null, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
@@ -27,12 +31,48 @@ function request(pathname, port, method = 'GET', body = null, extraHeaders = {})
 }
 
 async function withServer(t, fn) {
+  resetState();
   resetWriteUsage();
   const server = createServer();
   await new Promise((resolve) => server.listen(0, resolve));
   t.after(() => server.close());
   await fn(server.address().port);
 }
+
+test('persists state to disk when STATE_FILE is configured', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yoa-'));
+  const stateFile = path.join(tmpDir, 'state.json');
+  const originalStateFile = process.env.STATE_FILE;
+  process.env.STATE_FILE = stateFile;
+
+  try {
+    resetState();
+    const beforeCount = state.workspaces.length;
+    state.workspaces.push({
+      id: 'ws-999',
+      name: '持久化测试空间',
+      owner: 'qa',
+      updatedAt: '2026-04-12',
+      visibility: 'team'
+    });
+    persistStateToDisk();
+
+    resetState();
+    assert.equal(state.workspaces.some((x) => x.id === 'ws-999'), false);
+
+    loadStateFromDisk();
+    assert.equal(state.workspaces.length, beforeCount + 1);
+    assert.equal(state.workspaces.some((x) => x.id === 'ws-999'), true);
+  } finally {
+    if (originalStateFile === undefined) {
+      delete process.env.STATE_FILE;
+    } else {
+      process.env.STATE_FILE = originalStateFile;
+    }
+    resetState();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
 
 test('health endpoint returns ok', async (t) => {
   await withServer(t, async (port) => {
@@ -139,6 +179,23 @@ test('create task and update status via PATCH', async (t) => {
 
 test('tasks endpoint supports status filter and offset pagination', async (t) => {
   await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createdRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '用于状态筛选测试'
+    }, headers);
+    const created = JSON.parse(createdRes.body);
+    assert.equal(createdRes.status, 201);
+
+    const updateRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { status: 'running' },
+      headers
+    );
+    assert.equal(updateRes.status, 200);
+
     const res = await request('/api/tasks?status=running&sortBy=id&order=asc&offset=0&limit=1', port);
     const parsed = JSON.parse(res.body);
 
@@ -410,6 +467,23 @@ test('write usage endpoint rejects request without api key', async (t) => {
 
 test('dashboard summary returns aggregated counts and quota', async (t) => {
   await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: 'dashboard 统计样本'
+    }, headers);
+    const created = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const patchRes = await request(
+      `/api/tasks/${created.id}/status`,
+      port,
+      'PATCH',
+      { status: 'running' },
+      headers
+    );
+    assert.equal(patchRes.status, 200);
+
     const res = await request('/api/dashboard/summary', port, 'GET', null, { 'x-api-key': 'test-write-key' });
     const parsed = JSON.parse(res.body);
 

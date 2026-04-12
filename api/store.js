@@ -1,5 +1,6 @@
 const { data } = require('./data');
 
+const initialState = JSON.parse(JSON.stringify(data));
 const state = JSON.parse(JSON.stringify(data));
 
 const allowedVisibility = new Set(['private', 'team']);
@@ -10,6 +11,37 @@ const allowedAudience = new Set(['internal', 'external', 'partner']);
 const allowedPolicyChangeStatus = new Set(['pending', 'approved', 'rejected']);
 
 const nowDate = () => new Date().toISOString().slice(0, 10);
+
+function resetState() {
+  const fresh = JSON.parse(JSON.stringify(initialState));
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+  Object.assign(state, fresh);
+}
+
+function hydrateState(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') {
+    badRequest('state snapshot must be an object');
+  }
+
+  const merged = JSON.parse(JSON.stringify(initialState));
+  Object.keys(merged).forEach((key) => {
+    if (snapshot[key] !== undefined) {
+      merged[key] = snapshot[key];
+    }
+  });
+
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+  Object.assign(state, merged);
+  return state;
+}
+
+function getStateSnapshot() {
+  return JSON.parse(JSON.stringify(state));
+}
 
 function nextId(prefix, collection) {
   const nums = collection
@@ -327,6 +359,9 @@ function deleteWorkspace(workspaceId, options = {}) {
 
 module.exports = {
   state,
+  resetState,
+  hydrateState,
+  getStateSnapshot,
   createWorkspace,
   createDocument,
   createTask,
