@@ -896,8 +896,8 @@ test('dashboard summary supports task/document status filters', async (t) => {
     const parsed = JSON.parse(res.body);
 
     assert.equal(res.status, 200);
-    assert.equal(parsed.scope.taskStatus, 'done');
-    assert.equal(parsed.scope.documentStatus, 'indexed');
+    assert.deepEqual(parsed.scope.taskStatus, ['done']);
+    assert.deepEqual(parsed.scope.documentStatus, ['indexed']);
     assert.equal(parsed.counts.tasks, 1);
     assert.equal(parsed.counts.documents, 2);
     assert.equal(parsed.tasksByStatus.done, 1);
@@ -918,7 +918,7 @@ test('dashboard summary returns 400 for invalid task/document status filters', a
     );
     const invalidTaskStatusPayload = JSON.parse(invalidTaskStatusRes.body);
     assert.equal(invalidTaskStatusRes.status, 400);
-    assert.equal(invalidTaskStatusPayload.error, 'taskStatus must be one of: queued, running, done, failed');
+    assert.equal(invalidTaskStatusPayload.error, 'taskStatus must be comma-separated values of: queued, running, done, failed');
 
     const invalidDocumentStatusRes = await request(
       '/api/dashboard/summary?documentStatus=ready',
@@ -929,7 +929,31 @@ test('dashboard summary returns 400 for invalid task/document status filters', a
     );
     const invalidDocumentStatusPayload = JSON.parse(invalidDocumentStatusRes.body);
     assert.equal(invalidDocumentStatusRes.status, 400);
-    assert.equal(invalidDocumentStatusPayload.error, 'documentStatus must be one of: indexed, processing');
+    assert.equal(invalidDocumentStatusPayload.error, 'documentStatus must be comma-separated values of: indexed, processing');
+  });
+});
+
+test('dashboard summary supports task/document multi-status filters', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const res = await request(
+      '/api/dashboard/summary?taskStatus=queued,done&documentStatus=indexed,processing',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(parsed.scope.taskStatus, ['queued', 'done']);
+    assert.deepEqual(parsed.scope.documentStatus, ['indexed', 'processing']);
+    assert.equal(parsed.counts.tasks, 2);
+    assert.equal(parsed.counts.documents, 3);
+    assert.ok(parsed.tasksByStatus.queued >= 1);
+    assert.ok(parsed.tasksByStatus.done >= 1);
+    assert.ok(parsed.documentsByStatus.indexed >= 1);
+    assert.ok(parsed.documentsByStatus.processing >= 1);
   });
 });
 test('dashboard summary supports recent audit log filtering by action/method/actor', async (t) => {

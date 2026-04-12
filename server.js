@@ -239,17 +239,19 @@ function getDashboardSummary(apiKey, options = {}) {
   const recentAuditTargetId = options.recentAuditTargetId || [];
   const recentAuditDateFrom = options.recentAuditDateFrom || null;
   const recentAuditDateTo = options.recentAuditDateTo || null;
-  const taskStatus = options.taskStatus || null;
-  const documentStatus = options.documentStatus || null;
+  const taskStatus = options.taskStatus || [];
+  const documentStatus = options.documentStatus || [];
 
   if (workspaceId && !state.workspaces.some((item) => item.id === workspaceId)) {
     throw badRequest('workspaceId is invalid');
   }
-  if (taskStatus && !ALLOWED_TASK_STATUS.has(taskStatus)) {
-    throw badRequest('taskStatus must be one of: queued, running, done, failed');
+  const invalidTaskStatuses = taskStatus.filter((item) => !ALLOWED_TASK_STATUS.has(item));
+  if (invalidTaskStatuses.length > 0) {
+    throw badRequest('taskStatus must be comma-separated values of: queued, running, done, failed');
   }
-  if (documentStatus && !ALLOWED_DOCUMENT_STATUS.has(documentStatus)) {
-    throw badRequest('documentStatus must be one of: indexed, processing');
+  const invalidDocumentStatuses = documentStatus.filter((item) => !ALLOWED_DOCUMENT_STATUS.has(item));
+  if (invalidDocumentStatuses.length > 0) {
+    throw badRequest('documentStatus must be comma-separated values of: indexed, processing');
   }
   if (recentAuditDateFrom && recentAuditDateTo && recentAuditDateFrom > recentAuditDateTo) {
     throw badRequest('recentAuditDateFrom must be <= recentAuditDateTo');
@@ -273,14 +275,14 @@ function getDashboardSummary(apiKey, options = {}) {
   const workspaceScopedDocuments = workspaceId
     ? state.documents.filter((item) => item.workspaceId === workspaceId)
     : state.documents;
-  const scopedDocuments = documentStatus
-    ? workspaceScopedDocuments.filter((item) => item.status === documentStatus)
+  const scopedDocuments = documentStatus.length > 0
+    ? workspaceScopedDocuments.filter((item) => documentStatus.includes(item.status))
     : workspaceScopedDocuments;
   const workspaceScopedTasks = workspaceId
     ? state.tasks.filter((item) => item.workspaceId === workspaceId)
     : state.tasks;
-  const scopedTasks = taskStatus
-    ? workspaceScopedTasks.filter((item) => item.status === taskStatus)
+  const scopedTasks = taskStatus.length > 0
+    ? workspaceScopedTasks.filter((item) => taskStatus.includes(item.status))
     : workspaceScopedTasks;
   const scopedPolicyChangeRequests = workspaceId
     ? state.policyChangeRequests.filter((item) => item.workspaceId === workspaceId)
@@ -351,8 +353,8 @@ function getDashboardSummary(apiKey, options = {}) {
     generatedAt: new Date().toISOString(),
     scope: {
       workspaceId,
-      taskStatus,
-      documentStatus,
+      taskStatus: taskStatus.length === 0 ? null : taskStatus,
+      documentStatus: documentStatus.length === 0 ? null : documentStatus,
       recentAudit: {
         limit: recentAuditLimit,
         action: recentAuditAction,
@@ -631,8 +633,8 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const recentAuditMethod = parseCsvFilter(reqUrl.searchParams.get('recentAuditMethod'));
       const recentAuditActor = parseCsvFilter(reqUrl.searchParams.get('recentAuditActor'));
       const recentAuditTargetId = parseCsvFilter(reqUrl.searchParams.get('recentAuditTargetId'));
-      const taskStatus = reqUrl.searchParams.get('taskStatus');
-      const documentStatus = reqUrl.searchParams.get('documentStatus');
+      const taskStatus = parseCsvFilter(reqUrl.searchParams.get('taskStatus'));
+      const documentStatus = parseCsvFilter(reqUrl.searchParams.get('documentStatus'));
       const recentAuditDateFrom = parseDateBoundary(
         reqUrl.searchParams.get('recentAuditDateFrom'),
         'recentAuditDateFrom'
