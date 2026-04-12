@@ -307,6 +307,55 @@ test('task templates endpoint returns list', async (t) => {
   });
 });
 
+test('experts endpoint returns list and supports active status filter', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/experts?status=true&sortBy=id&order=asc', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(Array.isArray(parsed), true);
+    assert.equal(parsed.length, 1);
+    assert.equal(parsed[0].id, 'exp-001');
+    assert.equal(parsed[0].isActive, true);
+  });
+});
+
+test('create expert and activate via PATCH', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/experts', port, 'POST', {
+      expertName: 'Finance Risk Lens',
+      fiveLayers: {
+        expressionDNA: '先红线后动作',
+        mentalModels: ['风控分层', '损失厌恶'],
+        decisionHeuristics: ['先定义坏结果', '再定义止损阈值'],
+        antiPatterns: ['忽略现金流压力'],
+        honestBoundaries: ['无法替代法务意见']
+      }
+    }, headers);
+    const created = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+    assert.equal(created.isActive, false);
+
+    const activateRes = await request(`/api/experts/${created.id}/activate`, port, 'PATCH', {}, headers);
+    const activated = JSON.parse(activateRes.body);
+    assert.equal(activateRes.status, 200);
+    assert.equal(activated.id, created.id);
+    assert.equal(activated.isActive, true);
+
+    const activeListRes = await request('/api/experts?status=true', port);
+    const activeList = JSON.parse(activeListRes.body);
+    assert.equal(activeListRes.status, 200);
+    assert.equal(activeList.length, 1);
+    assert.equal(activeList[0].id, created.id);
+
+    const distillationRes = await request('/api/distillation/expert', port);
+    const distillation = JSON.parse(distillationRes.body);
+    assert.equal(distillationRes.status, 200);
+    assert.equal(distillation.expertName, 'Finance Risk Lens');
+  });
+});
+
 test('create task from template via POST', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/tasks/from-template', port, 'POST', {

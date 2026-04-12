@@ -9,6 +9,13 @@ const allowedTaskKinds = new Set(['chat', 'doc', 'analysis']);
 const allowedTaskStatus = new Set(['queued', 'running', 'done', 'failed']);
 const allowedAudience = new Set(['internal', 'external', 'partner']);
 const allowedPolicyChangeStatus = new Set(['pending', 'approved', 'rejected']);
+const requiredExpertLayerFields = [
+  'expressionDNA',
+  'mentalModels',
+  'decisionHeuristics',
+  'antiPatterns',
+  'honestBoundaries'
+];
 
 const nowDate = () => new Date().toISOString().slice(0, 10);
 
@@ -74,6 +81,17 @@ function normalizeEvidenceRefs(evidenceRefs, fieldName = 'evidenceRefs') {
     badRequest(`${fieldName} must be an array of non-empty strings when provided`);
   }
   return evidenceRefs.map((ref) => ref.trim());
+}
+
+function validateExpertLayers(fiveLayers) {
+  if (!fiveLayers || typeof fiveLayers !== 'object') {
+    badRequest('fiveLayers is required');
+  }
+  requiredExpertLayerFields.forEach((field) => {
+    if (fiveLayers[field] === undefined || fiveLayers[field] === null) {
+      badRequest(`fiveLayers.${field} is required`);
+    }
+  });
 }
 
 function createWorkspace(payload) {
@@ -240,6 +258,51 @@ function createPolicy(payload) {
   return item;
 }
 
+function createExpert(payload) {
+  if (!payload?.expertName || typeof payload.expertName !== 'string' || payload.expertName.trim() === '') {
+    badRequest('expertName is required');
+  }
+  validateExpertLayers(payload.fiveLayers);
+
+  const setActive = payload.isActive === true;
+  if (setActive) {
+    state.experts.forEach((expert) => {
+      expert.isActive = false;
+    });
+  }
+
+  const item = {
+    id: nextId('exp', state.experts),
+    expertName: payload.expertName.trim(),
+    isActive: setActive,
+    createdAt: nowDate(),
+    fiveLayers: payload.fiveLayers
+  };
+  state.experts.push(item);
+
+  if (item.isActive) {
+    state.distillation.expert = {
+      expertName: item.expertName,
+      fiveLayers: item.fiveLayers
+    };
+  }
+  return item;
+}
+
+function activateExpert(expertId) {
+  const expert = state.experts.find((item) => item.id === expertId);
+  if (!expert) notFound('expert not found');
+
+  state.experts.forEach((item) => {
+    item.isActive = item.id === expert.id;
+  });
+  state.distillation.expert = {
+    expertName: expert.expertName,
+    fiveLayers: expert.fiveLayers
+  };
+  return expert;
+}
+
 function createPolicyChangeRequest(payload) {
   if (!payload?.policyId || !payload?.proposedRule || !payload?.reason || !payload?.requestedBy) {
     badRequest('policyId, proposedRule, reason and requestedBy are required');
@@ -374,6 +437,8 @@ module.exports = {
   createTask,
   createTaskFromTemplate,
   createPolicy,
+  createExpert,
+  activateExpert,
   updateTaskStatus,
   deleteTask,
   deleteDocument,

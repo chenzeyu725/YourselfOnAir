@@ -18,6 +18,7 @@ npm run dev
 - `GET /api/documents`
 - `GET /api/tasks`
 - `GET /api/task-templates`
+- `GET /api/experts`
 - `GET /api/policies`
 - `GET /api/policy-change-requests`
 - `GET /api/audit-logs`
@@ -57,13 +58,22 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `POST /api/tasks`（可选 `workspaceId`，传入时必须是有效工作空间）
 - `POST /api/tasks/from-template`
 - `POST /api/policies`
+- `POST /api/experts`
 - `POST /api/policy-change-requests`
 - `DELETE /api/tasks/:taskId`
 - `DELETE /api/documents/:documentId`
 - `DELETE /api/workspaces/:workspaceId`（可选 `?force=true` 级联删除关联 documents/tasks）
 - `PATCH /api/tasks/:taskId/status`
+- `PATCH /api/experts/:expertId/activate`
 - `PATCH /api/policy-change-requests/:requestId/approve`
 - `PATCH /api/policy-change-requests/:requestId/reject`
+
+### Expert 多实例管理（本轮新增）
+
+- `GET /api/experts`：查看所有 Expert 视角；支持列表查询参数。
+- `POST /api/experts`：新增 Expert 视角（需 `expertName` + `fiveLayers`）。
+- `PATCH /api/experts/:expertId/activate`：激活指定 Expert，并同步更新 `GET /api/distillation/expert` 输出。
+- `GET /api/experts?status=true`：筛选当前激活的 Expert（`status=false` 可筛选未激活）。
 
 ### 任务完成约束（证据追溯）
 

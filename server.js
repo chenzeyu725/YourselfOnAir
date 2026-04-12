@@ -10,6 +10,8 @@ const {
   createTask,
   createTaskFromTemplate,
   createPolicy,
+  createExpert,
+  activateExpert,
   updateTaskStatus,
   deleteTask,
   deleteDocument,
@@ -46,6 +48,7 @@ const GET_ROUTES = {
   '/api/tasks': () => state.tasks,
   '/api/task-templates': () => state.taskTemplates,
   '/api/policies': () => state.policies,
+  '/api/experts': () => state.experts,
   '/api/policy-change-requests': () => state.policyChangeRequests,
   '/api/audit-logs': () => auditLogs,
   '/api/distillation/self': () => state.distillation.self,
@@ -61,6 +64,7 @@ const QUERYABLE_LIST_ROUTES = new Set([
   '/api/tasks',
   '/api/task-templates',
   '/api/policies',
+  '/api/experts',
   '/api/policy-change-requests',
   '/api/audit-logs'
 ]);
@@ -103,7 +107,15 @@ function applyListQuery(items, query) {
     result = result.filter((item) => JSON.stringify(item).toLowerCase().includes(normalized));
   }
   if (status) {
-    result = result.filter((item) => item.status === status);
+    result = result.filter((item) => {
+      if (item.status !== undefined) {
+        return item.status === status;
+      }
+      if (typeof item.isActive === 'boolean') {
+        return String(item.isActive) === status;
+      }
+      return false;
+    });
   }
   if (action) {
     result = result.filter((item) => item.action === action);
@@ -229,6 +241,7 @@ const POST_ROUTES = {
   '/api/tasks': createTask,
   '/api/tasks/from-template': createTaskFromTemplate,
   '/api/policies': createPolicy,
+  '/api/experts': createExpert,
   '/api/policy-change-requests': createPolicyChangeRequest
 };
 
@@ -480,6 +493,24 @@ async function handleApi(req, res, reqPath, reqUrl) {
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
         action: '/api/policy-change-requests/:requestId/reject',
+        method: 'PATCH',
+        actor: auth.apiKey,
+        targetId: updated.id
+      });
+      persistStateToDisk();
+      sendJson(res, updated);
+      return true;
+    }
+
+    const expertActivateMatch = reqPath.match(/^\/api\/experts\/(exp-\d+)\/activate$/);
+    if (expertActivateMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      const updated = activateExpert(expertActivateMatch[1]);
+      consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
+      pushAuditLog({
+        action: '/api/experts/:expertId/activate',
         method: 'PATCH',
         actor: auth.apiKey,
         targetId: updated.id
