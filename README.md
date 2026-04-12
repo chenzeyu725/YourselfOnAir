@@ -125,13 +125,13 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 
 - `GET /api/dashboard/summary?workspaceId=<id>`：返回指定工作空间视角的 tasks/documents/counts 聚合。
 - `recentAuditLimit`：控制 `recentAuditLogs` 返回条数，默认 `5`，最大 `50`。
-- `taskStatus`：按任务状态过滤 dashboard 的任务统计（可选：`queued` / `running` / `done` / `failed`）。
-- `documentStatus`：按文档状态过滤 dashboard 的文档统计（可选：`indexed` / `processing`）。
+- `taskStatus`：按任务状态过滤 dashboard 的任务统计（可选：`queued` / `running` / `done` / `failed`；支持逗号分隔多值，如 `taskStatus=queued,done`）。
+- `documentStatus`：按文档状态过滤 dashboard 的文档统计（可选：`indexed` / `processing`；支持逗号分隔多值，如 `documentStatus=indexed,processing`）。
 - `recentAuditAction` / `recentAuditMethod` / `recentAuditActor`：按动作、HTTP 方法、调用方过滤 `recentAuditLogs`（支持逗号分隔多值，如 `recentAuditAction=/api/tasks,/api/workspaces`）。
 - `recentAuditTargetId`：按审计日志中的 `targetId` 精确过滤（如某个 `task-xxx` / `ws-xxx`；支持逗号分隔多值）。
 - `recentAuditDateFrom` / `recentAuditDateTo`：按审计日志 `createdAt` 日期范围过滤（`YYYY-MM-DD`，包含边界日期）。
 - 响应新增字段：
-  - `scope.workspaceId` / `scope.taskStatus` / `scope.documentStatus`
+  - `scope.workspaceId` / `scope.taskStatus` / `scope.documentStatus`（当传入状态筛选时，后两者以数组回显）
   - `scope.recentAudit`：回显当前生效的审计筛选条件（`limit/action/method/actor/targetId/dateFrom/dateTo`）
   - `completionRate`（任务完成率，`done / tasks`；当任务数为 0 时返回 `null`）
   - `recentAuditLogs`（最近写操作审计记录，默认倒序返回最近 5 条）
