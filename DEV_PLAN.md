@@ -73,6 +73,13 @@
 3. 补充自动化测试覆盖默认排序、`asc` 排序与非法参数分支。
 4. 更新 README 文档，明确排序参数语义。
 
+## 0.10 本轮增量计划（2026-04-12，继续）
+
+1. 为 `GET /api/dashboard/summary` 增加 `recentAuditOffset` 参数，支持 `recentAuditLogs` 窗口分页。
+2. 保持默认行为不变（`offset=0`）并在 `scope.recentAudit` 中回显偏移量。
+3. 补充自动化测试覆盖分页窗口与非法参数分支。
+4. 更新 README 文档，明确分页参数语义与组合用法。
+
 ## 1. 计划拆分
 
 1. 基线工程初始化（零依赖 Node Web 服务）
