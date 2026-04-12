@@ -139,6 +139,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
   - `recentAuditByAction`（审计日志按 `action` 聚合计数，基于当前筛选条件计算）
   - `recentAuditByMethod`（审计日志按 HTTP `method` 聚合计数，基于当前筛选条件计算）
   - `recentAuditByActor`（审计日志按调用方 `actor` 聚合计数，基于当前筛选条件计算）
+  - `recentAuditByTarget`（审计日志按 `targetId` 聚合计数，忽略 `targetId` 为空的记录，基于当前筛选条件计算）
 
 ## 测试
 
