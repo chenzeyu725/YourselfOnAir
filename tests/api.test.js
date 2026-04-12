@@ -1044,6 +1044,33 @@ test('dashboard summary returns recentAuditByDate histogram', async (t) => {
   });
 });
 
+test('dashboard summary returns recentAuditByAction and recentAuditByMethod aggregations', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createWorkspaceRes = await request('/api/workspaces', port, 'POST', {
+      name: '仪表盘动作聚合空间',
+      owner: 'audit'
+    }, headers);
+    assert.equal(createWorkspaceRes.status, 201);
+
+    const createTaskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '仪表盘动作聚合任务'
+    }, headers);
+    assert.equal(createTaskRes.status, 201);
+
+    const summaryRes = await request('/api/dashboard/summary?recentAuditLimit=10', port, 'GET', null, headers);
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(typeof summary.recentAuditByAction, 'object');
+    assert.equal(typeof summary.recentAuditByMethod, 'object');
+    assert.ok(summary.recentAuditByAction['/api/workspaces'] >= 1);
+    assert.ok(summary.recentAuditByAction['/api/tasks'] >= 1);
+    assert.ok(summary.recentAuditByMethod.POST >= 2);
+  });
+});
+
 test('dashboard summary returns 400 when recentAuditDateFrom is after recentAuditDateTo', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };
