@@ -74,6 +74,59 @@ test('persists state to disk when STATE_FILE is configured', async () => {
   }
 });
 
+test('persists audit logs and write usage to disk when STATE_FILE is configured', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yoa-'));
+  const stateFile = path.join(tmpDir, 'state.json');
+  const originalStateFile = process.env.STATE_FILE;
+  process.env.STATE_FILE = stateFile;
+
+  try {
+    await withServer(t, async (port) => {
+      const headers = { 'x-api-key': 'test-write-key' };
+      const createRes = await request('/api/workspaces', port, 'POST', {
+        name: '持久化审计空间',
+        owner: 'qa'
+      }, headers);
+      assert.equal(createRes.status, 201);
+    });
+
+    resetState();
+    resetWriteUsage();
+    loadStateFromDisk();
+
+    assert.equal(state.workspaces.some((item) => item.name === '持久化审计空间'), true);
+    const usage = await new Promise((resolve, reject) => {
+      const server = createServer();
+      server.listen(0, async () => {
+        const port = server.address().port;
+        try {
+          const usageRes = await request('/api/write-usage', port, 'GET', null, { 'x-api-key': 'test-write-key' });
+          const usagePayload = JSON.parse(usageRes.body);
+          const logsRes = await request('/api/audit-logs', port);
+          const logs = JSON.parse(logsRes.body);
+          server.close(() => resolve({ usageRes, usagePayload, logs }));
+        } catch (error) {
+          server.close(() => reject(error));
+        }
+      });
+    });
+
+    assert.equal(usage.usageRes.status, 200);
+    assert.equal(usage.usagePayload.used, 1);
+    assert.equal(Array.isArray(usage.logs), true);
+    assert.equal(usage.logs.some((log) => log.action === '/api/workspaces' && log.method === 'POST'), true);
+  } finally {
+    if (originalStateFile === undefined) {
+      delete process.env.STATE_FILE;
+    } else {
+      process.env.STATE_FILE = originalStateFile;
+    }
+    resetState();
+    resetWriteUsage();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('health endpoint returns ok', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/health', port);

@@ -262,13 +262,36 @@ function loadStateFromDisk() {
   const content = fs.readFileSync(stateFile, 'utf-8');
   if (!content.trim()) return;
   const parsed = JSON.parse(content);
+
+  if (parsed && parsed.__format === 'yoa-state-v2') {
+    hydrateState(parsed.state || {});
+    writeUsage.clear();
+    if (Array.isArray(parsed.writeUsageEntries)) {
+      parsed.writeUsageEntries.forEach((entry) => {
+        if (Array.isArray(entry) && entry.length === 2) {
+          writeUsage.set(entry[0], entry[1]);
+        }
+      });
+    }
+    auditLogs.length = 0;
+    if (Array.isArray(parsed.auditLogs)) {
+      auditLogs.push(...parsed.auditLogs);
+    }
+    return;
+  }
+
   hydrateState(parsed);
 }
 
 function persistStateToDisk() {
   const stateFile = getStateFile();
   if (!stateFile) return;
-  const snapshot = getStateSnapshot();
+  const snapshot = {
+    __format: 'yoa-state-v2',
+    state: getStateSnapshot(),
+    writeUsageEntries: Array.from(writeUsage.entries()),
+    auditLogs
+  };
   const dir = path.dirname(stateFile);
   fs.mkdirSync(dir, { recursive: true });
   const tempFile = `${stateFile}.tmp`;
@@ -363,7 +386,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
     if (!auth.ok) throw auth.error;
     const payload = await parseJsonBody(req);
     const created = creator(payload);
-    persistStateToDisk();
     consumeWriteQuota(auth.apiKey);
     setWriteQuotaHeaders(res, auth.apiKey);
     pushAuditLog({
@@ -372,6 +394,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       actor: auth.apiKey,
       targetId: created.id || null
     });
+    persistStateToDisk();
     sendJson(res, created, 201);
     return true;
   }
@@ -383,7 +406,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = updateTaskStatus(taskStatusMatch[1], payload);
-      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -392,6 +414,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         actor: auth.apiKey,
         targetId: updated.id
       });
+      persistStateToDisk();
       sendJson(res, updated);
       return true;
     }
@@ -402,7 +425,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = approvePolicyChangeRequest(policyApproveMatch[1], payload);
-      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -411,6 +433,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         actor: auth.apiKey,
         targetId: updated.id
       });
+      persistStateToDisk();
       sendJson(res, updated);
       return true;
     }
@@ -421,7 +444,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
       const updated = rejectPolicyChangeRequest(policyRejectMatch[1], payload);
-      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -430,6 +452,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         actor: auth.apiKey,
         targetId: updated.id
       });
+      persistStateToDisk();
       sendJson(res, updated);
       return true;
     }
@@ -443,7 +466,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
       const deleted = deleteTask(taskDeleteMatch[1]);
-      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -452,6 +474,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         actor: auth.apiKey,
         targetId: deleted.id
       });
+      persistStateToDisk();
       sendJson(res, deleted);
       return true;
     }
@@ -461,7 +484,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
       const deleted = deleteDocument(documentDeleteMatch[1]);
-      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -470,6 +492,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         actor: auth.apiKey,
         targetId: deleted.id
       });
+      persistStateToDisk();
       sendJson(res, deleted);
       return true;
     }
@@ -480,7 +503,6 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const force = reqUrl.searchParams.get('force') === 'true';
       const deleted = deleteWorkspace(workspaceDeleteMatch[1], { force });
-      persistStateToDisk();
       consumeWriteQuota(auth.apiKey);
       setWriteQuotaHeaders(res, auth.apiKey);
       pushAuditLog({
@@ -489,6 +511,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         actor: auth.apiKey,
         targetId: deleted.id
       });
+      persistStateToDisk();
       sendJson(res, deleted);
       return true;
     }
