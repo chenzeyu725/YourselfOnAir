@@ -42,6 +42,9 @@ npm run dev
 - `action`：按 `action` 精确过滤（如 audit-logs 的接口动作）。
 - `method`：按 `method` 精确过滤（如 audit-logs 的 `POST/PATCH`）。
 - `actor`：按 `actor` 精确过滤（如 audit-logs 的调用 API Key）。
+- `dateField`：指定日期字段名（如 experts 的 `createdAt`、audit-logs 的 `createdAt`）。
+- `dateFrom`：按日期下界过滤（`YYYY-MM-DD`，需配合 `dateField` 使用，含当天）。
+- `dateTo`：按日期上界过滤（`YYYY-MM-DD`，需配合 `dateField` 使用，含当天）。
 - `sortBy`：按字段排序（如 `id`、`name`）。
 - `order`：排序方向，`asc`（默认）或 `desc`。
 - `offset`：从第 N 条开始（非负整数）。

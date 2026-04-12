@@ -87,6 +87,18 @@ function parseNonNegativeInt(value, field, max = Number.MAX_SAFE_INTEGER) {
   return num;
 }
 
+function parseDateBoundary(value, field) {
+  if (value === null || value === undefined) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw badRequest(`${field} must be in YYYY-MM-DD format`);
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    throw badRequest(`${field} must be a valid date`);
+  }
+  return parsed;
+}
+
 function applyListQuery(items, query) {
   const q = query.get('q');
   const status = query.get('status');
@@ -97,8 +109,23 @@ function applyListQuery(items, query) {
   const actor = query.get('actor');
   const sortBy = query.get('sortBy');
   const orderRaw = query.get('order');
+  const dateField = query.get('dateField');
+  const dateFromRaw = query.get('dateFrom');
+  const dateToRaw = query.get('dateTo');
   const limit = parseNonNegativeInt(query.get('limit'), 'limit', 100);
   const offset = parseNonNegativeInt(query.get('offset'), 'offset');
+  const dateFrom = parseDateBoundary(dateFromRaw, 'dateFrom');
+  const dateTo = parseDateBoundary(dateToRaw, 'dateTo');
+
+  if ((dateFrom || dateTo) && !dateField) {
+    throw badRequest('dateField is required when dateFrom/dateTo is provided');
+  }
+  if (dateFrom && dateTo && dateFrom > dateTo) {
+    throw badRequest('dateFrom must be <= dateTo');
+  }
+  const dateToInclusiveEnd = dateTo
+    ? new Date(Date.UTC(dateTo.getUTCFullYear(), dateTo.getUTCMonth(), dateTo.getUTCDate(), 23, 59, 59, 999))
+    : null;
 
   let result = [...items];
 
@@ -131,6 +158,23 @@ function applyListQuery(items, query) {
   }
   if (actor) {
     result = result.filter((item) => item.actor === actor);
+  }
+  if (dateField) {
+    const sample = result.find((item) => Object.prototype.hasOwnProperty.call(item, dateField));
+    if (!sample && result.length > 0) {
+      throw badRequest(`dateField not found: ${dateField}`);
+    }
+    if (dateFrom || dateTo) {
+      result = result.filter((item) => {
+        const raw = item[dateField];
+        if (typeof raw !== 'string') return false;
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) return false;
+        if (dateFrom && parsed < dateFrom) return false;
+        if (dateToInclusiveEnd && parsed > dateToInclusiveEnd) return false;
+        return true;
+      });
+    }
   }
 
   if (sortBy) {

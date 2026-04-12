@@ -594,6 +594,42 @@ test('audit logs capture write operations and support list queries', async (t) =
   });
 });
 
+test('list endpoint supports date range query with dateField/dateFrom/dateTo', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/experts?dateField=createdAt&dateFrom=2026-04-11&dateTo=2026-04-11', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(Array.isArray(parsed), true);
+    assert.equal(parsed.length, 1);
+    assert.equal(parsed[0].id, 'exp-002');
+  });
+});
+
+test('returns 400 when date range query is missing dateField', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/experts?dateFrom=2026-04-11', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'dateField is required when dateFrom/dateTo is provided');
+  });
+});
+
+test('returns 400 when date range query has invalid boundaries', async (t) => {
+  await withServer(t, async (port) => {
+    const formatRes = await request('/api/experts?dateField=createdAt&dateFrom=2026/04/11', port);
+    const formatParsed = JSON.parse(formatRes.body);
+    assert.equal(formatRes.status, 400);
+    assert.equal(formatParsed.error, 'dateFrom must be in YYYY-MM-DD format');
+
+    const orderRes = await request('/api/experts?dateField=createdAt&dateFrom=2026-04-12&dateTo=2026-04-11', port);
+    const orderParsed = JSON.parse(orderRes.body);
+    assert.equal(orderRes.status, 400);
+    assert.equal(orderParsed.error, 'dateFrom must be <= dateTo');
+  });
+});
+
 test('write usage endpoint rejects request without api key', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/write-usage', port);
