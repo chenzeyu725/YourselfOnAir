@@ -31,6 +31,13 @@
 3. 补充自动化测试覆盖该聚合字段。
 4. 更新 README 文档，明确新返回字段语义。
 
+## 0.4 本轮增量计划（2026-04-12，继续）
+
+1. 为 `GET /api/dashboard/summary` 增加 `recentAuditByActor` 聚合字段。
+2. 确保聚合严格遵循现有审计筛选条件（action/method/actor/targetId/date range）。
+3. 补充自动化测试验证 `recentAuditByActor` 与现有聚合字段协同可用。
+4. 更新 README 文档，明确新增返回字段语义。
+
 ## 1. 计划拆分
 
 1. 基线工程初始化（零依赖 Node Web 服务）

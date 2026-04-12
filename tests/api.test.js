@@ -1065,9 +1065,11 @@ test('dashboard summary returns recentAuditByAction and recentAuditByMethod aggr
     assert.equal(summaryRes.status, 200);
     assert.equal(typeof summary.recentAuditByAction, 'object');
     assert.equal(typeof summary.recentAuditByMethod, 'object');
+    assert.equal(typeof summary.recentAuditByActor, 'object');
     assert.ok(summary.recentAuditByAction['/api/workspaces'] >= 1);
     assert.ok(summary.recentAuditByAction['/api/tasks'] >= 1);
     assert.ok(summary.recentAuditByMethod.POST >= 2);
+    assert.ok(summary.recentAuditByActor['test-write-key'] >= 2);
   });
 });
 
