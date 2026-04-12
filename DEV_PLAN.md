@@ -66,6 +66,13 @@
 3. 补充自动化测试覆盖有效限制与非法参数分支。
 4. 更新 README 文档，明确新参数语义与回显字段。
 
+## 0.9 本轮增量计划（2026-04-12，继续）
+
+1. 为 `GET /api/dashboard/summary` 增加 `recentAuditOrder` 参数，支持 `recentAuditLogs` 升序/降序切换。
+2. 保持默认行为不变（`desc`，最新日志在前）并在 `scope.recentAudit` 中回显排序方向。
+3. 补充自动化测试覆盖默认排序、`asc` 排序与非法参数分支。
+4. 更新 README 文档，明确排序参数语义。
+
 ## 1. 计划拆分
 
 1. 基线工程初始化（零依赖 Node Web 服务）

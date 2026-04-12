@@ -233,6 +233,7 @@ function getWriteQuotaOverview(apiKey) {
 function getDashboardSummary(apiKey, options = {}) {
   const workspaceId = options.workspaceId || null;
   const recentAuditLimit = options.recentAuditLimit || 5;
+  const recentAuditOrder = options.recentAuditOrder || 'desc';
   const recentAuditAction = options.recentAuditAction || [];
   const recentAuditMethod = options.recentAuditMethod || [];
   const recentAuditActor = options.recentAuditActor || [];
@@ -262,6 +263,9 @@ function getDashboardSummary(apiKey, options = {}) {
     && (!Number.isInteger(recentAuditGroupLimit) || recentAuditGroupLimit < 1 || recentAuditGroupLimit > 20)
   ) {
     throw badRequest('recentAuditGroupLimit must be an integer between 1 and 20');
+  }
+  if (recentAuditOrder !== 'asc' && recentAuditOrder !== 'desc') {
+    throw badRequest('recentAuditOrder must be asc or desc');
   }
   const recentAuditDateToInclusiveEnd = recentAuditDateTo
     ? new Date(Date.UTC(
@@ -369,6 +373,11 @@ function getDashboardSummary(apiKey, options = {}) {
     return acc;
   }, {}));
 
+  const recentAuditLogWindow = recentAuditLogs.slice(-recentAuditLimit);
+  const orderedRecentAuditLogs = recentAuditOrder === 'asc'
+    ? recentAuditLogWindow
+    : [...recentAuditLogWindow].reverse();
+
   return {
     generatedAt: new Date().toISOString(),
     scope: {
@@ -377,6 +386,7 @@ function getDashboardSummary(apiKey, options = {}) {
       documentStatus: documentStatus.length === 0 ? null : documentStatus,
       recentAudit: {
         limit: recentAuditLimit,
+        order: recentAuditOrder,
         action: recentAuditAction,
         method: recentAuditMethod,
         actor: recentAuditActor,
@@ -396,7 +406,7 @@ function getDashboardSummary(apiKey, options = {}) {
     tasksByStatus,
     documentsByStatus,
     completionRate,
-    recentAuditLogs: recentAuditLogs.slice(-recentAuditLimit).reverse(),
+    recentAuditLogs: orderedRecentAuditLogs,
     recentAuditByDate,
     recentAuditByAction,
     recentAuditByMethod,
@@ -650,6 +660,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const workspaceId = reqUrl.searchParams.get('workspaceId');
       const recentAuditLimit = parseNonNegativeInt(reqUrl.searchParams.get('recentAuditLimit'), 'recentAuditLimit', 50);
+      const recentAuditOrder = reqUrl.searchParams.get('recentAuditOrder') || 'desc';
       const recentAuditAction = parseCsvFilter(reqUrl.searchParams.get('recentAuditAction'));
       const recentAuditMethod = parseCsvFilter(reqUrl.searchParams.get('recentAuditMethod'));
       const recentAuditActor = parseCsvFilter(reqUrl.searchParams.get('recentAuditActor'));
@@ -673,6 +684,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       sendJson(res, getDashboardSummary(auth.apiKey, {
         workspaceId,
         recentAuditLimit: recentAuditLimit === null ? 5 : recentAuditLimit,
+        recentAuditOrder,
         recentAuditAction,
         recentAuditMethod,
         recentAuditActor,
