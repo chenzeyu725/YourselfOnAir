@@ -603,6 +603,38 @@ test('write usage endpoint rejects request without api key', async (t) => {
   });
 });
 
+test('state export endpoint returns portable snapshot with auth', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/workspaces', port, 'POST', {
+      name: '导出快照样本空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(createRes.status, 201);
+
+    const exportRes = await request('/api/state/export', port, 'GET', null, headers);
+    const payload = JSON.parse(exportRes.body);
+
+    assert.equal(exportRes.status, 200);
+    assert.equal(payload.__format, 'yoa-state-v2');
+    assert.equal(typeof payload.exportedAt, 'string');
+    assert.equal(Array.isArray(payload.state.workspaces), true);
+    assert.equal(Array.isArray(payload.writeUsageEntries), true);
+    assert.equal(Array.isArray(payload.auditLogs), true);
+    assert.equal(payload.auditLogs.some((log) => log.action === '/api/workspaces'), true);
+  });
+});
+
+test('state export endpoint rejects request without api key', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/state/export', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 401);
+    assert.equal(parsed.error, 'unauthorized: missing or invalid x-api-key');
+  });
+});
+
 test('dashboard summary returns aggregated counts and quota', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };

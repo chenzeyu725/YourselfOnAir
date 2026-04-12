@@ -28,6 +28,7 @@ npm run dev
 - `GET /api/provenance`
 - `GET /api/fusion/preview`
 - `GET /api/write-usage`（需 `x-api-key`，返回今日写配额使用情况）
+- `GET /api/state/export`（需 `x-api-key`，导出可迁移状态快照，含 state/writeUsage/auditLogs）
 - `GET /api/dashboard/summary`（需 `x-api-key`，返回 Dashboard 聚合统计与配额概览；支持 `workspaceId`、`recentAuditLimit` 查询参数）
 
 ### 列表接口查询参数（本轮新增）

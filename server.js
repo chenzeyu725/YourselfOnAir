@@ -323,15 +323,21 @@ function loadStateFromDisk() {
   hydrateState(parsed);
 }
 
-function persistStateToDisk() {
-  const stateFile = getStateFile();
-  if (!stateFile) return;
-  const snapshot = {
+
+function createPortableSnapshot() {
+  return {
     __format: 'yoa-state-v2',
+    exportedAt: new Date().toISOString(),
     state: getStateSnapshot(),
     writeUsageEntries: Array.from(writeUsage.entries()),
     auditLogs
   };
+}
+
+function persistStateToDisk() {
+  const stateFile = getStateFile();
+  if (!stateFile) return;
+  const snapshot = createPortableSnapshot();
   const dir = path.dirname(stateFile);
   fs.mkdirSync(dir, { recursive: true });
   const tempFile = `${stateFile}.tmp`;
@@ -402,6 +408,14 @@ async function handleApi(req, res, reqPath, reqUrl) {
         workspaceId,
         recentAuditLimit: recentAuditLimit === null ? 5 : recentAuditLimit
       }));
+      return true;
+    }
+
+    if (reqPath === '/api/state/export') {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      setWriteQuotaHeaders(res, auth.apiKey);
+      sendJson(res, createPortableSnapshot());
       return true;
     }
 
@@ -640,5 +654,6 @@ module.exports = {
   consumeWriteQuota,
   resetWriteUsage,
   loadStateFromDisk,
-  persistStateToDisk
+  persistStateToDisk,
+  createPortableSnapshot
 };
