@@ -66,6 +66,34 @@ const data = {
       defaultEvidenceRefs: []
     }
   ],
+  experts: [
+    {
+      id: 'exp-001',
+      expertName: 'Nuwa-style Expert Lens',
+      isActive: true,
+      createdAt: '2026-04-10',
+      fiveLayers: {
+        expressionDNA: '短句、强判断、少形容词',
+        mentalModels: ['第一性原理', '机会成本', '逆向验证'],
+        decisionHeuristics: ['先算上限/下限', '先去掉不可行项，再优化可行项'],
+        antiPatterns: ['不基于证据的拍脑袋承诺', '为了好看而牺牲可执行性'],
+        honestBoundaries: ['无法替代真实一手访谈', '无法保证对未来事件给出确定预测']
+      }
+    },
+    {
+      id: 'exp-002',
+      expertName: 'Growth Operator Lens',
+      isActive: false,
+      createdAt: '2026-04-11',
+      fiveLayers: {
+        expressionDNA: '先看指标、再看动作、最后看复盘',
+        mentalModels: ['增长飞轮', '漏斗分层', '最小可行实验'],
+        decisionHeuristics: ['每次只改一个变量', '先验证最大瓶颈环节'],
+        antiPatterns: ['一次改太多导致无法归因', '只看曝光不看转化'],
+        honestBoundaries: ['不保证短期爆发增长', '无法替代真实用户调研']
+      }
+    }
+  ],
   policies: [
     {
       id: 'policy-001',
