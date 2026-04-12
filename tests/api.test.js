@@ -1061,6 +1061,60 @@ test('dashboard summary supports recent audit multi-value filters', async (t) =>
   });
 });
 
+test('dashboard summary returns recentAuditLogs in descending order by default', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const wsRes = await request('/api/workspaces', port, 'POST', {
+      name: '默认倒序空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(wsRes.status, 201);
+
+    const taskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '默认倒序任务'
+    }, headers);
+    assert.equal(taskRes.status, 201);
+
+    const summaryRes = await request('/api/dashboard/summary?recentAuditLimit=2', port, 'GET', null, headers);
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(summary.scope.recentAudit.order, 'desc');
+    assert.equal(summary.recentAuditLogs.length, 2);
+    assert.equal(summary.recentAuditLogs[0].action, '/api/tasks');
+    assert.equal(summary.recentAuditLogs[1].action, '/api/workspaces');
+  });
+});
+
+test('dashboard summary supports recentAuditOrder=asc', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const wsRes = await request('/api/workspaces', port, 'POST', {
+      name: '升序空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(wsRes.status, 201);
+
+    const taskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '升序任务'
+    }, headers);
+    assert.equal(taskRes.status, 201);
+
+    const summaryRes = await request('/api/dashboard/summary?recentAuditLimit=2&recentAuditOrder=asc', port, 'GET', null, headers);
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(summary.scope.recentAudit.order, 'asc');
+    assert.equal(summary.recentAuditLogs.length, 2);
+    assert.equal(summary.recentAuditLogs[0].action, '/api/workspaces');
+    assert.equal(summary.recentAuditLogs[1].action, '/api/tasks');
+  });
+});
+
 test('dashboard summary supports recent audit log filtering by date range', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };
@@ -1194,6 +1248,17 @@ test('dashboard summary returns 400 for invalid recentAuditGroupLimit', async (t
 
     assert.equal(res.status, 400);
     assert.equal(parsed.error, 'recentAuditGroupLimit must be an integer between 1 and 20');
+  });
+});
+
+test('dashboard summary returns 400 for invalid recentAuditOrder', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const res = await request('/api/dashboard/summary?recentAuditOrder=latest', port, 'GET', null, headers);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'recentAuditOrder must be asc or desc');
   });
 });
 
