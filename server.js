@@ -318,6 +318,16 @@ function getDashboardSummary(apiKey, options = {}) {
     acc[dateKey] = (acc[dateKey] || 0) + 1;
     return acc;
   }, {});
+  const recentAuditByAction = recentAuditLogs.reduce((acc, item) => {
+    if (!item.action) return acc;
+    acc[item.action] = (acc[item.action] || 0) + 1;
+    return acc;
+  }, {});
+  const recentAuditByMethod = recentAuditLogs.reduce((acc, item) => {
+    if (!item.method) return acc;
+    acc[item.method] = (acc[item.method] || 0) + 1;
+    return acc;
+  }, {});
 
   return {
     generatedAt: new Date().toISOString(),
@@ -347,6 +357,8 @@ function getDashboardSummary(apiKey, options = {}) {
     completionRate,
     recentAuditLogs: recentAuditLogs.slice(-recentAuditLimit).reverse(),
     recentAuditByDate,
+    recentAuditByAction,
+    recentAuditByMethod,
     writeQuota: getWriteQuotaOverview(apiKey)
   };
 }
