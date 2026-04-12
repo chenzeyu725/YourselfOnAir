@@ -1025,6 +1025,25 @@ test('dashboard summary supports recent audit log filtering by date range', asyn
   });
 });
 
+test('dashboard summary returns recentAuditByDate histogram', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createWorkspaceRes = await request('/api/workspaces', port, 'POST', {
+      name: '仪表盘直方图空间',
+      owner: 'hist'
+    }, headers);
+    assert.equal(createWorkspaceRes.status, 201);
+
+    const summaryRes = await request('/api/dashboard/summary?recentAuditAction=/api/workspaces', port, 'GET', null, headers);
+    const summary = JSON.parse(summaryRes.body);
+    const today = new Date().toISOString().slice(0, 10);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(typeof summary.recentAuditByDate, 'object');
+    assert.ok(summary.recentAuditByDate[today] >= 1);
+  });
+});
+
 test('dashboard summary returns 400 when recentAuditDateFrom is after recentAuditDateTo', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };

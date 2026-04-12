@@ -24,6 +24,13 @@
 3. 补充自动化测试覆盖日期过滤和错误分支。
 4. 更新 README 文档，明确新增查询参数语义。
 
+## 0.3 本轮增量计划（2026-04-12，继续）
+
+1. 为 `GET /api/dashboard/summary` 增加 `recentAuditByDate` 字段，便于按日观察写操作趋势。
+2. 确保统计遵循现有审计筛选条件（action/method/actor/targetId/date range）。
+3. 补充自动化测试覆盖该聚合字段。
+4. 更新 README 文档，明确新返回字段语义。
+
 ## 1. 计划拆分
 
 1. 基线工程初始化（零依赖 Node Web 服务）

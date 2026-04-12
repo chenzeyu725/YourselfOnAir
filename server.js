@@ -311,6 +311,13 @@ function getDashboardSummary(apiKey, options = {}) {
       return true;
     });
   }
+  const recentAuditByDate = recentAuditLogs.reduce((acc, item) => {
+    const createdAt = new Date(item.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return acc;
+    const dateKey = createdAt.toISOString().slice(0, 10);
+    acc[dateKey] = (acc[dateKey] || 0) + 1;
+    return acc;
+  }, {});
 
   return {
     generatedAt: new Date().toISOString(),
@@ -339,6 +346,7 @@ function getDashboardSummary(apiKey, options = {}) {
     documentsByStatus,
     completionRate,
     recentAuditLogs: recentAuditLogs.slice(-recentAuditLimit).reverse(),
+    recentAuditByDate,
     writeQuota: getWriteQuotaOverview(apiKey)
   };
 }
