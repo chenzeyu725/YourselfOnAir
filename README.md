@@ -135,6 +135,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
   - `scope.recentAudit`：回显当前生效的审计筛选条件（`limit/action/method/actor/targetId/dateFrom/dateTo`）
   - `completionRate`（任务完成率，`done / tasks`；当任务数为 0 时返回 `null`）
   - `recentAuditLogs`（最近写操作审计记录，默认倒序返回最近 5 条）
+  - `recentAuditByDate`（审计日志按 `YYYY-MM-DD` 聚合的每日写操作计数，基于当前筛选条件计算）
 
 ## 测试
 
