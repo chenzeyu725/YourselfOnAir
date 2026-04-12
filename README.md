@@ -130,9 +130,10 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `recentAuditAction` / `recentAuditMethod` / `recentAuditActor`：按动作、HTTP 方法、调用方过滤 `recentAuditLogs`（支持逗号分隔多值，如 `recentAuditAction=/api/tasks,/api/workspaces`）。
 - `recentAuditTargetId`：按审计日志中的 `targetId` 精确过滤（如某个 `task-xxx` / `ws-xxx`；支持逗号分隔多值）。
 - `recentAuditDateFrom` / `recentAuditDateTo`：按审计日志 `createdAt` 日期范围过滤（`YYYY-MM-DD`，包含边界日期）。
+- `recentAuditGroupLimit`：限制审计聚合字段（`recentAuditByAction` / `recentAuditByMethod` / `recentAuditByActor` / `recentAuditByTarget`）返回的 Top N 项，取值 `1-20`。
 - 响应新增字段：
   - `scope.workspaceId` / `scope.taskStatus` / `scope.documentStatus`（当传入状态筛选时，后两者以数组回显）
-  - `scope.recentAudit`：回显当前生效的审计筛选条件（`limit/action/method/actor/targetId/dateFrom/dateTo`）
+  - `scope.recentAudit`：回显当前生效的审计筛选条件（`limit/action/method/actor/targetId/dateFrom/dateTo/groupLimit`）
   - `completionRate`（任务完成率，`done / tasks`；当任务数为 0 时返回 `null`）
   - `recentAuditLogs`（最近写操作审计记录，默认倒序返回最近 5 条）
   - `recentAuditByDate`（审计日志按 `YYYY-MM-DD` 聚合的每日写操作计数，基于当前筛选条件计算）
