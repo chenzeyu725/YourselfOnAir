@@ -69,6 +69,9 @@ const QUERYABLE_LIST_ROUTES = new Set([
   '/api/audit-logs'
 ]);
 
+const ALLOWED_TASK_STATUS = new Set(['queued', 'running', 'done', 'failed']);
+const ALLOWED_DOCUMENT_STATUS = new Set(['indexed', 'processing']);
+
 function badRequest(message) {
   const err = new Error(message);
   err.status = 400;
@@ -228,9 +231,17 @@ function getDashboardSummary(apiKey, options = {}) {
   const recentAuditTargetId = options.recentAuditTargetId || null;
   const recentAuditDateFrom = options.recentAuditDateFrom || null;
   const recentAuditDateTo = options.recentAuditDateTo || null;
+  const taskStatus = options.taskStatus || null;
+  const documentStatus = options.documentStatus || null;
 
   if (workspaceId && !state.workspaces.some((item) => item.id === workspaceId)) {
     throw badRequest('workspaceId is invalid');
+  }
+  if (taskStatus && !ALLOWED_TASK_STATUS.has(taskStatus)) {
+    throw badRequest('taskStatus must be one of: queued, running, done, failed');
+  }
+  if (documentStatus && !ALLOWED_DOCUMENT_STATUS.has(documentStatus)) {
+    throw badRequest('documentStatus must be one of: indexed, processing');
   }
   if (recentAuditDateFrom && recentAuditDateTo && recentAuditDateFrom > recentAuditDateTo) {
     throw badRequest('recentAuditDateFrom must be <= recentAuditDateTo');
@@ -250,12 +261,18 @@ function getDashboardSummary(apiKey, options = {}) {
   const scopedWorkspaces = workspaceId
     ? state.workspaces.filter((item) => item.id === workspaceId)
     : state.workspaces;
-  const scopedDocuments = workspaceId
+  const workspaceScopedDocuments = workspaceId
     ? state.documents.filter((item) => item.workspaceId === workspaceId)
     : state.documents;
-  const scopedTasks = workspaceId
+  const scopedDocuments = documentStatus
+    ? workspaceScopedDocuments.filter((item) => item.status === documentStatus)
+    : workspaceScopedDocuments;
+  const workspaceScopedTasks = workspaceId
     ? state.tasks.filter((item) => item.workspaceId === workspaceId)
     : state.tasks;
+  const scopedTasks = taskStatus
+    ? workspaceScopedTasks.filter((item) => item.status === taskStatus)
+    : workspaceScopedTasks;
   const scopedPolicyChangeRequests = workspaceId
     ? state.policyChangeRequests.filter((item) => item.workspaceId === workspaceId)
     : state.policyChangeRequests;
@@ -297,7 +314,9 @@ function getDashboardSummary(apiKey, options = {}) {
   return {
     generatedAt: new Date().toISOString(),
     scope: {
-      workspaceId
+      workspaceId,
+      taskStatus,
+      documentStatus
     },
     counts: {
       workspaces: scopedWorkspaces.length,
@@ -562,6 +581,8 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const recentAuditMethod = reqUrl.searchParams.get('recentAuditMethod');
       const recentAuditActor = reqUrl.searchParams.get('recentAuditActor');
       const recentAuditTargetId = reqUrl.searchParams.get('recentAuditTargetId');
+      const taskStatus = reqUrl.searchParams.get('taskStatus');
+      const documentStatus = reqUrl.searchParams.get('documentStatus');
       const recentAuditDateFrom = parseDateBoundary(
         reqUrl.searchParams.get('recentAuditDateFrom'),
         'recentAuditDateFrom'
@@ -579,7 +600,9 @@ async function handleApi(req, res, reqPath, reqUrl) {
         recentAuditActor,
         recentAuditTargetId,
         recentAuditDateFrom,
-        recentAuditDateTo
+        recentAuditDateTo,
+        taskStatus,
+        documentStatus
       }));
       return true;
     }
