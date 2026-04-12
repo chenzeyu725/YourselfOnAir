@@ -10,6 +10,13 @@
 3. 补充自动化测试，验证预演不会修改状态/配额/审计日志。
 4. 更新 README 文档，明确预演接口行为与使用方式。
 
+## 0.1 本轮增量计划（2026-04-12）
+
+1. 保持主线 API 稳定前提下增强 Dashboard 查询能力。
+2. 为 `GET /api/dashboard/summary` 增加 `recentAuditAction` / `recentAuditMethod` / `recentAuditActor` 过滤参数。
+3. 补充自动化测试覆盖新增过滤逻辑。
+4. 同步 README 说明，便于联调与验收。
+
 ## 1. 计划拆分
 
 1. 基线工程初始化（零依赖 Node Web 服务）

@@ -222,6 +222,9 @@ function getWriteQuotaOverview(apiKey) {
 function getDashboardSummary(apiKey, options = {}) {
   const workspaceId = options.workspaceId || null;
   const recentAuditLimit = options.recentAuditLimit || 5;
+  const recentAuditAction = options.recentAuditAction || null;
+  const recentAuditMethod = options.recentAuditMethod || null;
+  const recentAuditActor = options.recentAuditActor || null;
 
   if (workspaceId && !state.workspaces.some((item) => item.id === workspaceId)) {
     throw badRequest('workspaceId is invalid');
@@ -251,6 +254,17 @@ function getDashboardSummary(apiKey, options = {}) {
   const doneTasks = tasksByStatus.done || 0;
   const completionRate = scopedTasks.length === 0 ? null : Number((doneTasks / scopedTasks.length).toFixed(4));
 
+  let recentAuditLogs = [...auditLogs];
+  if (recentAuditAction) {
+    recentAuditLogs = recentAuditLogs.filter((item) => item.action === recentAuditAction);
+  }
+  if (recentAuditMethod) {
+    recentAuditLogs = recentAuditLogs.filter((item) => item.method === recentAuditMethod);
+  }
+  if (recentAuditActor) {
+    recentAuditLogs = recentAuditLogs.filter((item) => item.actor === recentAuditActor);
+  }
+
   return {
     generatedAt: new Date().toISOString(),
     scope: {
@@ -266,7 +280,7 @@ function getDashboardSummary(apiKey, options = {}) {
     tasksByStatus,
     documentsByStatus,
     completionRate,
-    recentAuditLogs: auditLogs.slice(-recentAuditLimit).reverse(),
+    recentAuditLogs: recentAuditLogs.slice(-recentAuditLimit).reverse(),
     writeQuota: getWriteQuotaOverview(apiKey)
   };
 }
@@ -515,10 +529,16 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const workspaceId = reqUrl.searchParams.get('workspaceId');
       const recentAuditLimit = parseNonNegativeInt(reqUrl.searchParams.get('recentAuditLimit'), 'recentAuditLimit', 50);
+      const recentAuditAction = reqUrl.searchParams.get('recentAuditAction');
+      const recentAuditMethod = reqUrl.searchParams.get('recentAuditMethod');
+      const recentAuditActor = reqUrl.searchParams.get('recentAuditActor');
       setWriteQuotaHeaders(res, auth.apiKey);
       sendJson(res, getDashboardSummary(auth.apiKey, {
         workspaceId,
-        recentAuditLimit: recentAuditLimit === null ? 5 : recentAuditLimit
+        recentAuditLimit: recentAuditLimit === null ? 5 : recentAuditLimit,
+        recentAuditAction,
+        recentAuditMethod,
+        recentAuditActor
       }));
       return true;
     }
