@@ -1141,6 +1141,34 @@ test('dashboard summary returns recentAuditByAction and recentAuditByMethod aggr
   });
 });
 
+test('dashboard summary supports recentAuditGroupLimit for aggregation fields', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const wsRes = await request('/api/workspaces', port, 'POST', {
+      name: '聚合限制空间',
+      owner: 'audit'
+    }, headers);
+    assert.equal(wsRes.status, 201);
+
+    const taskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '聚合限制任务'
+    }, headers);
+    assert.equal(taskRes.status, 201);
+
+    const summaryRes = await request('/api/dashboard/summary?recentAuditGroupLimit=1&recentAuditLimit=10', port, 'GET', null, headers);
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(summary.scope.recentAudit.groupLimit, 1);
+    assert.equal(Object.keys(summary.recentAuditByAction).length, 1);
+    assert.equal(Object.keys(summary.recentAuditByMethod).length, 1);
+    assert.equal(Object.keys(summary.recentAuditByActor).length, 1);
+    assert.equal(Object.keys(summary.recentAuditByTarget).length, 1);
+  });
+});
+
 test('dashboard summary returns 400 when recentAuditDateFrom is after recentAuditDateTo', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };
@@ -1155,6 +1183,17 @@ test('dashboard summary returns 400 when recentAuditDateFrom is after recentAudi
 
     assert.equal(res.status, 400);
     assert.equal(parsed.error, 'recentAuditDateFrom must be <= recentAuditDateTo');
+  });
+});
+
+test('dashboard summary returns 400 for invalid recentAuditGroupLimit', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const res = await request('/api/dashboard/summary?recentAuditGroupLimit=0', port, 'GET', null, headers);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'recentAuditGroupLimit must be an integer between 1 and 20');
   });
 });
 

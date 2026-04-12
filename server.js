@@ -239,6 +239,7 @@ function getDashboardSummary(apiKey, options = {}) {
   const recentAuditTargetId = options.recentAuditTargetId || [];
   const recentAuditDateFrom = options.recentAuditDateFrom || null;
   const recentAuditDateTo = options.recentAuditDateTo || null;
+  const recentAuditGroupLimit = options.recentAuditGroupLimit ?? null;
   const taskStatus = options.taskStatus || [];
   const documentStatus = options.documentStatus || [];
 
@@ -256,6 +257,12 @@ function getDashboardSummary(apiKey, options = {}) {
   if (recentAuditDateFrom && recentAuditDateTo && recentAuditDateFrom > recentAuditDateTo) {
     throw badRequest('recentAuditDateFrom must be <= recentAuditDateTo');
   }
+  if (
+    recentAuditGroupLimit !== null
+    && (!Number.isInteger(recentAuditGroupLimit) || recentAuditGroupLimit < 1 || recentAuditGroupLimit > 20)
+  ) {
+    throw badRequest('recentAuditGroupLimit must be an integer between 1 and 20');
+  }
   const recentAuditDateToInclusiveEnd = recentAuditDateTo
     ? new Date(Date.UTC(
       recentAuditDateTo.getUTCFullYear(),
@@ -268,6 +275,19 @@ function getDashboardSummary(apiKey, options = {}) {
     ))
     : null;
   const serializeDateBoundary = (value) => (value ? value.toISOString().slice(0, 10) : null);
+  const maybeLimitAggregation = (aggregated) => {
+    if (recentAuditGroupLimit === null) return aggregated;
+    return Object.entries(aggregated)
+      .sort((a, b) => {
+        if (b[1] === a[1]) return a[0].localeCompare(b[0]);
+        return b[1] - a[1];
+      })
+      .slice(0, recentAuditGroupLimit)
+      .reduce((acc, [key, count]) => {
+        acc[key] = count;
+        return acc;
+      }, {});
+  };
 
   const scopedWorkspaces = workspaceId
     ? state.workspaces.filter((item) => item.id === workspaceId)
@@ -328,26 +348,26 @@ function getDashboardSummary(apiKey, options = {}) {
     acc[dateKey] = (acc[dateKey] || 0) + 1;
     return acc;
   }, {});
-  const recentAuditByAction = recentAuditLogs.reduce((acc, item) => {
+  const recentAuditByAction = maybeLimitAggregation(recentAuditLogs.reduce((acc, item) => {
     if (!item.action) return acc;
     acc[item.action] = (acc[item.action] || 0) + 1;
     return acc;
-  }, {});
-  const recentAuditByMethod = recentAuditLogs.reduce((acc, item) => {
+  }, {}));
+  const recentAuditByMethod = maybeLimitAggregation(recentAuditLogs.reduce((acc, item) => {
     if (!item.method) return acc;
     acc[item.method] = (acc[item.method] || 0) + 1;
     return acc;
-  }, {});
-  const recentAuditByActor = recentAuditLogs.reduce((acc, item) => {
+  }, {}));
+  const recentAuditByActor = maybeLimitAggregation(recentAuditLogs.reduce((acc, item) => {
     if (!item.actor) return acc;
     acc[item.actor] = (acc[item.actor] || 0) + 1;
     return acc;
-  }, {});
-  const recentAuditByTarget = recentAuditLogs.reduce((acc, item) => {
+  }, {}));
+  const recentAuditByTarget = maybeLimitAggregation(recentAuditLogs.reduce((acc, item) => {
     if (!item.targetId) return acc;
     acc[item.targetId] = (acc[item.targetId] || 0) + 1;
     return acc;
-  }, {});
+  }, {}));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -362,7 +382,8 @@ function getDashboardSummary(apiKey, options = {}) {
         actor: recentAuditActor,
         targetId: recentAuditTargetId,
         dateFrom: serializeDateBoundary(recentAuditDateFrom),
-        dateTo: serializeDateBoundary(recentAuditDateTo)
+        dateTo: serializeDateBoundary(recentAuditDateTo),
+        groupLimit: recentAuditGroupLimit
       }
     },
     counts: {
@@ -643,6 +664,11 @@ async function handleApi(req, res, reqPath, reqUrl) {
         reqUrl.searchParams.get('recentAuditDateTo'),
         'recentAuditDateTo'
       );
+      const recentAuditGroupLimit = parseNonNegativeInt(
+        reqUrl.searchParams.get('recentAuditGroupLimit'),
+        'recentAuditGroupLimit',
+        20
+      );
       setWriteQuotaHeaders(res, auth.apiKey);
       sendJson(res, getDashboardSummary(auth.apiKey, {
         workspaceId,
@@ -653,6 +679,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         recentAuditTargetId,
         recentAuditDateFrom,
         recentAuditDateTo,
+        recentAuditGroupLimit,
         taskStatus,
         documentStatus
       }));
