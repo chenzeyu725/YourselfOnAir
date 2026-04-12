@@ -915,6 +915,34 @@ test('dashboard summary supports recent audit log filtering by action/method/act
   });
 });
 
+test('dashboard summary supports recent audit log filtering by targetId', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const createdWorkspaceRes = await request('/api/workspaces', port, 'POST', {
+      name: '目标对象筛选空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(createdWorkspaceRes.status, 201);
+    const createdWorkspace = JSON.parse(createdWorkspaceRes.body);
+
+    const summaryRes = await request(
+      `/api/dashboard/summary?recentAuditAction=/api/workspaces&recentAuditTargetId=${createdWorkspace.id}&recentAuditLimit=5`,
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(Array.isArray(summary.recentAuditLogs), true);
+    assert.equal(summary.recentAuditLogs.length, 1);
+    assert.equal(summary.recentAuditLogs[0].action, '/api/workspaces');
+    assert.equal(summary.recentAuditLogs[0].targetId, createdWorkspace.id);
+  });
+});
+
 test('dashboard summary supports recent audit log filtering by date range', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };

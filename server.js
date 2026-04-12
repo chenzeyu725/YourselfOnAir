@@ -225,6 +225,7 @@ function getDashboardSummary(apiKey, options = {}) {
   const recentAuditAction = options.recentAuditAction || null;
   const recentAuditMethod = options.recentAuditMethod || null;
   const recentAuditActor = options.recentAuditActor || null;
+  const recentAuditTargetId = options.recentAuditTargetId || null;
   const recentAuditDateFrom = options.recentAuditDateFrom || null;
   const recentAuditDateTo = options.recentAuditDateTo || null;
 
@@ -279,6 +280,9 @@ function getDashboardSummary(apiKey, options = {}) {
   }
   if (recentAuditActor) {
     recentAuditLogs = recentAuditLogs.filter((item) => item.actor === recentAuditActor);
+  }
+  if (recentAuditTargetId) {
+    recentAuditLogs = recentAuditLogs.filter((item) => item.targetId === recentAuditTargetId);
   }
   if (recentAuditDateFrom || recentAuditDateToInclusiveEnd) {
     recentAuditLogs = recentAuditLogs.filter((item) => {
@@ -557,6 +561,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const recentAuditAction = reqUrl.searchParams.get('recentAuditAction');
       const recentAuditMethod = reqUrl.searchParams.get('recentAuditMethod');
       const recentAuditActor = reqUrl.searchParams.get('recentAuditActor');
+      const recentAuditTargetId = reqUrl.searchParams.get('recentAuditTargetId');
       const recentAuditDateFrom = parseDateBoundary(
         reqUrl.searchParams.get('recentAuditDateFrom'),
         'recentAuditDateFrom'
@@ -572,6 +577,7 @@ async function handleApi(req, res, reqPath, reqUrl) {
         recentAuditAction,
         recentAuditMethod,
         recentAuditActor,
+        recentAuditTargetId,
         recentAuditDateFrom,
         recentAuditDateTo
       }));

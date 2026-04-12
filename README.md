@@ -126,6 +126,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `GET /api/dashboard/summary?workspaceId=<id>`：返回指定工作空间视角的 tasks/documents/counts 聚合。
 - `recentAuditLimit`：控制 `recentAuditLogs` 返回条数，默认 `5`，最大 `50`。
 - `recentAuditAction` / `recentAuditMethod` / `recentAuditActor`：按动作、HTTP 方法、调用方过滤 `recentAuditLogs`。
+- `recentAuditTargetId`：按审计日志中的 `targetId` 精确过滤（如某个 `task-xxx` / `ws-xxx`）。
 - `recentAuditDateFrom` / `recentAuditDateTo`：按审计日志 `createdAt` 日期范围过滤（`YYYY-MM-DD`，包含边界日期）。
 - 响应新增字段：
   - `scope.workspaceId`
