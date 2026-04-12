@@ -1052,12 +1052,14 @@ test('dashboard summary returns recentAuditByAction and recentAuditByMethod aggr
       owner: 'audit'
     }, headers);
     assert.equal(createWorkspaceRes.status, 201);
+    const workspace = JSON.parse(createWorkspaceRes.body);
 
     const createTaskRes = await request('/api/tasks', port, 'POST', {
       kind: 'analysis',
       prompt: '仪表盘动作聚合任务'
     }, headers);
     assert.equal(createTaskRes.status, 201);
+    const task = JSON.parse(createTaskRes.body);
 
     const summaryRes = await request('/api/dashboard/summary?recentAuditLimit=10', port, 'GET', null, headers);
     const summary = JSON.parse(summaryRes.body);
@@ -1066,10 +1068,13 @@ test('dashboard summary returns recentAuditByAction and recentAuditByMethod aggr
     assert.equal(typeof summary.recentAuditByAction, 'object');
     assert.equal(typeof summary.recentAuditByMethod, 'object');
     assert.equal(typeof summary.recentAuditByActor, 'object');
+    assert.equal(typeof summary.recentAuditByTarget, 'object');
     assert.ok(summary.recentAuditByAction['/api/workspaces'] >= 1);
     assert.ok(summary.recentAuditByAction['/api/tasks'] >= 1);
     assert.ok(summary.recentAuditByMethod.POST >= 2);
     assert.ok(summary.recentAuditByActor['test-write-key'] >= 2);
+    assert.ok(summary.recentAuditByTarget[workspace.id] >= 1);
+    assert.ok(summary.recentAuditByTarget[task.id] >= 1);
   });
 });
 

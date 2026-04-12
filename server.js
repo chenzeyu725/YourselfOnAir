@@ -333,6 +333,11 @@ function getDashboardSummary(apiKey, options = {}) {
     acc[item.actor] = (acc[item.actor] || 0) + 1;
     return acc;
   }, {});
+  const recentAuditByTarget = recentAuditLogs.reduce((acc, item) => {
+    if (!item.targetId) return acc;
+    acc[item.targetId] = (acc[item.targetId] || 0) + 1;
+    return acc;
+  }, {});
 
   return {
     generatedAt: new Date().toISOString(),
@@ -365,6 +370,7 @@ function getDashboardSummary(apiKey, options = {}) {
     recentAuditByAction,
     recentAuditByMethod,
     recentAuditByActor,
+    recentAuditByTarget,
     writeQuota: getWriteQuotaOverview(apiKey)
   };
 }
