@@ -671,6 +671,79 @@ test('state export endpoint rejects request without api key', async (t) => {
   });
 });
 
+test('state import endpoint imports yoa-state-v2 snapshot and keeps quota accounting', async (t) => {
+  await withServer(t, async (port) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const payload = {
+      __format: 'yoa-state-v2',
+      state: {
+        workspaces: [
+          {
+            id: 'ws-777',
+            name: '导入工作空间',
+            owner: 'importer',
+            updatedAt: '2026-04-12',
+            visibility: 'team'
+          }
+        ],
+        documents: [],
+        tasks: [],
+        taskTemplates: [],
+        policies: [],
+        experts: [],
+        policyChangeRequests: [],
+        distillation: {
+          self: {},
+          expert: {},
+          provenance: {}
+        },
+        fusionPreview: {},
+        billing: {}
+      },
+      writeUsageEntries: [[`test-write-key::${today}`, 1]],
+      auditLogs: [
+        {
+          id: 'audit-import-seed',
+          createdAt: '2026-04-12T00:00:00.000Z',
+          action: '/seed',
+          method: 'POST',
+          actor: 'seed'
+        }
+      ]
+    };
+
+    const importRes = await request('/api/state/import', port, 'POST', payload, { 'x-api-key': 'test-write-key' });
+    const imported = JSON.parse(importRes.body);
+    assert.equal(importRes.status, 200);
+    assert.equal(imported.ok, true);
+    assert.equal(imported.counts.workspaces, 1);
+
+    const workspacesRes = await request('/api/workspaces', port);
+    const workspaces = JSON.parse(workspacesRes.body);
+    assert.equal(workspacesRes.status, 200);
+    assert.equal(workspaces.some((item) => item.id === 'ws-777'), true);
+
+    const usageRes = await request('/api/write-usage', port, 'GET', null, { 'x-api-key': 'test-write-key' });
+    const usage = JSON.parse(usageRes.body);
+    assert.equal(usageRes.status, 200);
+    assert.equal(usage.used, 2);
+
+    const logsRes = await request('/api/audit-logs', port);
+    const logs = JSON.parse(logsRes.body);
+    assert.equal(logs.some((item) => item.action === '/api/state/import'), true);
+  });
+});
+
+test('state import endpoint rejects request without api key', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/state/import', port, 'POST', { __format: 'yoa-state-v2', state: {} });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 401);
+    assert.equal(parsed.error, 'unauthorized: missing or invalid x-api-key');
+  });
+});
+
 test('dashboard summary returns aggregated counts and quota', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };

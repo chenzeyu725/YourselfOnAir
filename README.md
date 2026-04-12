@@ -29,6 +29,7 @@ npm run dev
 - `GET /api/fusion/preview`
 - `GET /api/write-usage`（需 `x-api-key`，返回今日写配额使用情况）
 - `GET /api/state/export`（需 `x-api-key`，导出可迁移状态快照，含 state/writeUsage/auditLogs）
+- `POST /api/state/import`（需 `x-api-key`，导入状态快照并返回导入统计）
 - `GET /api/dashboard/summary`（需 `x-api-key`，返回 Dashboard 聚合统计与配额概览；支持 `workspaceId`、`recentAuditLimit` 查询参数）
 
 ### 列表接口查询参数（本轮新增）
@@ -64,6 +65,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `POST /api/policies`
 - `POST /api/experts`
 - `POST /api/policy-change-requests`
+- `POST /api/state/import`（需 `x-api-key`，导入 `yoa-state-v2` 或 legacy state JSON 快照）
 - `DELETE /api/tasks/:taskId`
 - `DELETE /api/documents/:documentId`
 - `DELETE /api/workspaces/:workspaceId`（可选 `?force=true` 级联删除关联 documents/tasks）
