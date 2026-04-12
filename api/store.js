@@ -132,6 +132,12 @@ function createTask(payload) {
   if (!allowedTaskKinds.has(payload.kind)) {
     badRequest('kind must be one of: chat, doc, analysis');
   }
+  if (payload.workspaceId !== undefined) {
+    const workspace = state.workspaces.find((w) => w.id === payload.workspaceId);
+    if (!workspace) {
+      badRequest('workspaceId is invalid');
+    }
+  }
 
   const normalizedEvidenceRefs = normalizeEvidenceRefs(payload.evidenceRefs);
 
@@ -140,7 +146,8 @@ function createTask(payload) {
     kind: payload.kind,
     prompt: payload.prompt,
     status: 'queued',
-    evidenceRefs: normalizedEvidenceRefs || []
+    evidenceRefs: normalizedEvidenceRefs || [],
+    ...(payload.workspaceId ? { workspaceId: payload.workspaceId } : {})
   };
 
   state.tasks.push(item);

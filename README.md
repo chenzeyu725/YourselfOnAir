@@ -54,7 +54,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 写入类（本轮新增）：
 - `POST /api/workspaces`
 - `POST /api/documents`
-- `POST /api/tasks`
+- `POST /api/tasks`（可选 `workspaceId`，传入时必须是有效工作空间）
 - `POST /api/tasks/from-template`
 - `POST /api/policies`
 - `POST /api/policy-change-requests`
