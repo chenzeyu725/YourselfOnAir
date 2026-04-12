@@ -57,6 +57,9 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `POST /api/tasks/from-template`
 - `POST /api/policies`
 - `POST /api/policy-change-requests`
+- `DELETE /api/tasks/:taskId`
+- `DELETE /api/documents/:documentId`
+- `DELETE /api/workspaces/:workspaceId`（可选 `?force=true` 级联删除关联 documents/tasks）
 - `PATCH /api/tasks/:taskId/status`
 - `PATCH /api/policy-change-requests/:requestId/approve`
 - `PATCH /api/policy-change-requests/:requestId/reject`

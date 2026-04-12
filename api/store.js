@@ -288,6 +288,43 @@ function approvePolicyChangeRequest(requestId, payload) {
   return req;
 }
 
+function deleteTask(taskId) {
+  const index = state.tasks.findIndex((task) => task.id === taskId);
+  if (index < 0) notFound('task not found');
+  const [deleted] = state.tasks.splice(index, 1);
+  return deleted;
+}
+
+function deleteDocument(documentId) {
+  const index = state.documents.findIndex((doc) => doc.id === documentId);
+  if (index < 0) notFound('document not found');
+  const [deleted] = state.documents.splice(index, 1);
+  return deleted;
+}
+
+function deleteWorkspace(workspaceId, options = {}) {
+  const { force = false } = options;
+  const index = state.workspaces.findIndex((workspace) => workspace.id === workspaceId);
+  if (index < 0) notFound('workspace not found');
+
+  const relatedDocuments = state.documents.filter((doc) => doc.workspaceId === workspaceId).map((doc) => doc.id);
+  const relatedTasks = state.tasks.filter((task) => task.workspaceId === workspaceId).map((task) => task.id);
+  if (!force && (relatedDocuments.length > 0 || relatedTasks.length > 0)) {
+    badRequest('workspace has related resources, use force=true to delete', {
+      relatedDocuments,
+      relatedTasks
+    });
+  }
+
+  if (force) {
+    state.documents = state.documents.filter((doc) => doc.workspaceId !== workspaceId);
+    state.tasks = state.tasks.filter((task) => task.workspaceId !== workspaceId);
+  }
+
+  const [deleted] = state.workspaces.splice(index, 1);
+  return deleted;
+}
+
 module.exports = {
   state,
   createWorkspace,
@@ -296,6 +333,9 @@ module.exports = {
   createTaskFromTemplate,
   createPolicy,
   updateTaskStatus,
+  deleteTask,
+  deleteDocument,
+  deleteWorkspace,
   createPolicyChangeRequest,
   approvePolicyChangeRequest,
   rejectPolicyChangeRequest

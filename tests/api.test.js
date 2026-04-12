@@ -495,6 +495,79 @@ test('create and reject policy change request', async (t) => {
   });
 });
 
+test('delete task via DELETE', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '待删除任务'
+    }, headers);
+    const created = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const deleteRes = await request(`/api/tasks/${created.id}`, port, 'DELETE', null, headers);
+    const deleted = JSON.parse(deleteRes.body);
+    assert.equal(deleteRes.status, 200);
+    assert.equal(deleted.id, created.id);
+
+    const listRes = await request('/api/tasks', port);
+    const tasks = JSON.parse(listRes.body);
+    assert.equal(tasks.some((task) => task.id === created.id), false);
+  });
+});
+
+test('delete workspace requires force=true when related resources exist', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/workspaces', port, 'POST', {
+      name: '删除前校验空间',
+      owner: 'ops'
+    }, headers);
+    const workspace = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const docRes = await request('/api/documents', port, 'POST', {
+      name: '关联文档',
+      type: 'pdf',
+      workspaceId: workspace.id
+    }, headers);
+    assert.equal(docRes.status, 201);
+
+    const deleteRes = await request(`/api/workspaces/${workspace.id}`, port, 'DELETE', null, headers);
+    const parsed = JSON.parse(deleteRes.body);
+    assert.equal(deleteRes.status, 400);
+    assert.equal(parsed.error, 'workspace has related resources, use force=true to delete');
+    assert.ok(Array.isArray(parsed.details.relatedDocuments));
+  });
+});
+
+test('force deletes workspace and related resources', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/workspaces', port, 'POST', {
+      name: '级联删除空间',
+      owner: 'ops'
+    }, headers);
+    const workspace = JSON.parse(createRes.body);
+    assert.equal(createRes.status, 201);
+
+    const docRes = await request('/api/documents', port, 'POST', {
+      name: '临时文档',
+      type: 'md',
+      workspaceId: workspace.id
+    }, headers);
+    const doc = JSON.parse(docRes.body);
+    assert.equal(docRes.status, 201);
+
+    const deleteRes = await request(`/api/workspaces/${workspace.id}?force=true`, port, 'DELETE', null, headers);
+    assert.equal(deleteRes.status, 200);
+
+    const docListRes = await request('/api/documents', port);
+    const docs = JSON.parse(docListRes.body);
+    assert.equal(docs.some((item) => item.id === doc.id), false);
+  });
+});
+
 test('returns 400 when approving a rejected policy change request', async (t) => {
   await withServer(t, async (port) => {
     const createRes = await request('/api/policy-change-requests', port, 'POST', {

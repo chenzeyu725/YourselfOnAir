@@ -9,6 +9,9 @@ const {
   createTaskFromTemplate,
   createPolicy,
   updateTaskStatus,
+  deleteTask,
+  deleteDocument,
+  deleteWorkspace,
   createPolicyChangeRequest,
   approvePolicyChangeRequest,
   rejectPolicyChangeRequest
@@ -370,8 +373,64 @@ async function handleApi(req, res, reqPath, reqUrl) {
     return false;
   }
 
+  if (req.method === 'DELETE') {
+    const taskDeleteMatch = reqPath.match(/^\/api\/tasks\/(task-\d+)$/);
+    if (taskDeleteMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      const deleted = deleteTask(taskDeleteMatch[1]);
+      consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
+      pushAuditLog({
+        action: '/api/tasks/:taskId',
+        method: 'DELETE',
+        actor: auth.apiKey,
+        targetId: deleted.id
+      });
+      sendJson(res, deleted);
+      return true;
+    }
+
+    const documentDeleteMatch = reqPath.match(/^\/api\/documents\/(doc-\d+)$/);
+    if (documentDeleteMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      const deleted = deleteDocument(documentDeleteMatch[1]);
+      consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
+      pushAuditLog({
+        action: '/api/documents/:documentId',
+        method: 'DELETE',
+        actor: auth.apiKey,
+        targetId: deleted.id
+      });
+      sendJson(res, deleted);
+      return true;
+    }
+
+    const workspaceDeleteMatch = reqPath.match(/^\/api\/workspaces\/(ws-\d+)$/);
+    if (workspaceDeleteMatch) {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      const force = reqUrl.searchParams.get('force') === 'true';
+      const deleted = deleteWorkspace(workspaceDeleteMatch[1], { force });
+      consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
+      pushAuditLog({
+        action: '/api/workspaces/:workspaceId',
+        method: 'DELETE',
+        actor: auth.apiKey,
+        targetId: deleted.id
+      });
+      sendJson(res, deleted);
+      return true;
+    }
+
+    return false;
+  }
+
   if (reqPath.startsWith('/api/')) {
-    sendJson(res, { error: 'Method Not Allowed', allow: ['GET', 'POST', 'PATCH'] }, 405);
+    sendJson(res, { error: 'Method Not Allowed', allow: ['GET', 'POST', 'PATCH', 'DELETE'] }, 405);
     return true;
   }
 
