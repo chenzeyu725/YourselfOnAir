@@ -259,6 +259,42 @@ test('tasks endpoint supports status filter and offset pagination', async (t) =>
   });
 });
 
+test('create task accepts valid workspaceId and can be filtered by workspaceId', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const createRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '关联到指定工作空间',
+      workspaceId: 'ws-001'
+    }, headers);
+    const created = JSON.parse(createRes.body);
+
+    assert.equal(createRes.status, 201);
+    assert.equal(created.workspaceId, 'ws-001');
+
+    const listRes = await request('/api/tasks?workspaceId=ws-001&sortBy=id&order=desc&limit=1', port);
+    const list = JSON.parse(listRes.body);
+    assert.equal(listRes.status, 200);
+    assert.equal(Array.isArray(list), true);
+    assert.equal(list.length, 1);
+    assert.equal(list[0].workspaceId, 'ws-001');
+  });
+});
+
+test('returns 400 when creating task with invalid workspaceId', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '非法工作空间',
+      workspaceId: 'ws-404'
+    }, { 'x-api-key': 'test-write-key' });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'workspaceId is invalid');
+  });
+});
+
 test('task templates endpoint returns list', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/task-templates?sortBy=id&order=asc', port);
