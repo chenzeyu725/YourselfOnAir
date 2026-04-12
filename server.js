@@ -257,6 +257,7 @@ function getDashboardSummary(apiKey, options = {}) {
       999
     ))
     : null;
+  const serializeDateBoundary = (value) => (value ? value.toISOString().slice(0, 10) : null);
 
   const scopedWorkspaces = workspaceId
     ? state.workspaces.filter((item) => item.id === workspaceId)
@@ -316,7 +317,16 @@ function getDashboardSummary(apiKey, options = {}) {
     scope: {
       workspaceId,
       taskStatus,
-      documentStatus
+      documentStatus,
+      recentAudit: {
+        limit: recentAuditLimit,
+        action: recentAuditAction,
+        method: recentAuditMethod,
+        actor: recentAuditActor,
+        targetId: recentAuditTargetId,
+        dateFrom: serializeDateBoundary(recentAuditDateFrom),
+        dateTo: serializeDateBoundary(recentAuditDateTo)
+      }
     },
     counts: {
       workspaces: scopedWorkspaces.length,

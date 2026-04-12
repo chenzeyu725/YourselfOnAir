@@ -132,6 +132,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `recentAuditDateFrom` / `recentAuditDateTo`：按审计日志 `createdAt` 日期范围过滤（`YYYY-MM-DD`，包含边界日期）。
 - 响应新增字段：
   - `scope.workspaceId` / `scope.taskStatus` / `scope.documentStatus`
+  - `scope.recentAudit`：回显当前生效的审计筛选条件（`limit/action/method/actor/targetId/dateFrom/dateTo`）
   - `completionRate`（任务完成率，`done / tasks`；当任务数为 0 时返回 `null`）
   - `recentAuditLogs`（最近写操作审计记录，默认倒序返回最近 5 条）
 
