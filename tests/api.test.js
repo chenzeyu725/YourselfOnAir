@@ -915,6 +915,48 @@ test('dashboard summary supports recent audit log filtering by action/method/act
   });
 });
 
+test('dashboard summary supports recent audit log filtering by date range', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const wsRes = await request('/api/workspaces', port, 'POST', {
+      name: '日期筛选审计空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(wsRes.status, 201);
+
+    const summaryRes = await request(
+      '/api/dashboard/summary?recentAuditDateFrom=2099-01-01&recentAuditDateTo=2099-01-02',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(Array.isArray(summary.recentAuditLogs), true);
+    assert.equal(summary.recentAuditLogs.length, 0);
+  });
+});
+
+test('dashboard summary returns 400 when recentAuditDateFrom is after recentAuditDateTo', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const res = await request(
+      '/api/dashboard/summary?recentAuditDateFrom=2026-04-12&recentAuditDateTo=2026-04-11',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'recentAuditDateFrom must be <= recentAuditDateTo');
+  });
+});
+
 test('dashboard summary returns 400 when workspaceId is invalid', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/dashboard/summary?workspaceId=ws-404', port, 'GET', null, { 'x-api-key': 'test-write-key' });

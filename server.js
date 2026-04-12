@@ -225,10 +225,26 @@ function getDashboardSummary(apiKey, options = {}) {
   const recentAuditAction = options.recentAuditAction || null;
   const recentAuditMethod = options.recentAuditMethod || null;
   const recentAuditActor = options.recentAuditActor || null;
+  const recentAuditDateFrom = options.recentAuditDateFrom || null;
+  const recentAuditDateTo = options.recentAuditDateTo || null;
 
   if (workspaceId && !state.workspaces.some((item) => item.id === workspaceId)) {
     throw badRequest('workspaceId is invalid');
   }
+  if (recentAuditDateFrom && recentAuditDateTo && recentAuditDateFrom > recentAuditDateTo) {
+    throw badRequest('recentAuditDateFrom must be <= recentAuditDateTo');
+  }
+  const recentAuditDateToInclusiveEnd = recentAuditDateTo
+    ? new Date(Date.UTC(
+      recentAuditDateTo.getUTCFullYear(),
+      recentAuditDateTo.getUTCMonth(),
+      recentAuditDateTo.getUTCDate(),
+      23,
+      59,
+      59,
+      999
+    ))
+    : null;
 
   const scopedWorkspaces = workspaceId
     ? state.workspaces.filter((item) => item.id === workspaceId)
@@ -263,6 +279,15 @@ function getDashboardSummary(apiKey, options = {}) {
   }
   if (recentAuditActor) {
     recentAuditLogs = recentAuditLogs.filter((item) => item.actor === recentAuditActor);
+  }
+  if (recentAuditDateFrom || recentAuditDateToInclusiveEnd) {
+    recentAuditLogs = recentAuditLogs.filter((item) => {
+      const createdAt = new Date(item.createdAt);
+      if (Number.isNaN(createdAt.getTime())) return false;
+      if (recentAuditDateFrom && createdAt < recentAuditDateFrom) return false;
+      if (recentAuditDateToInclusiveEnd && createdAt > recentAuditDateToInclusiveEnd) return false;
+      return true;
+    });
   }
 
   return {
@@ -532,13 +557,23 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const recentAuditAction = reqUrl.searchParams.get('recentAuditAction');
       const recentAuditMethod = reqUrl.searchParams.get('recentAuditMethod');
       const recentAuditActor = reqUrl.searchParams.get('recentAuditActor');
+      const recentAuditDateFrom = parseDateBoundary(
+        reqUrl.searchParams.get('recentAuditDateFrom'),
+        'recentAuditDateFrom'
+      );
+      const recentAuditDateTo = parseDateBoundary(
+        reqUrl.searchParams.get('recentAuditDateTo'),
+        'recentAuditDateTo'
+      );
       setWriteQuotaHeaders(res, auth.apiKey);
       sendJson(res, getDashboardSummary(auth.apiKey, {
         workspaceId,
         recentAuditLimit: recentAuditLimit === null ? 5 : recentAuditLimit,
         recentAuditAction,
         recentAuditMethod,
-        recentAuditActor
+        recentAuditActor,
+        recentAuditDateFrom,
+        recentAuditDateTo
       }));
       return true;
     }
