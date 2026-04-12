@@ -963,6 +963,10 @@ test('dashboard summary supports recent audit log filtering by action/method/act
     assert.equal(summary.recentAuditLogs[0].action, '/api/tasks');
     assert.equal(summary.recentAuditLogs[0].method, 'POST');
     assert.equal(summary.recentAuditLogs[0].actor, 'test-write-key');
+    assert.equal(summary.scope.recentAudit.limit, 5);
+    assert.equal(summary.scope.recentAudit.action, '/api/tasks');
+    assert.equal(summary.scope.recentAudit.method, 'POST');
+    assert.equal(summary.scope.recentAudit.actor, 'test-write-key');
   });
 });
 
@@ -1016,6 +1020,8 @@ test('dashboard summary supports recent audit log filtering by date range', asyn
     assert.equal(summaryRes.status, 200);
     assert.equal(Array.isArray(summary.recentAuditLogs), true);
     assert.equal(summary.recentAuditLogs.length, 0);
+    assert.equal(summary.scope.recentAudit.dateFrom, '2099-01-01');
+    assert.equal(summary.scope.recentAudit.dateTo, '2099-01-02');
   });
 });
 
