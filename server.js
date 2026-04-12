@@ -378,6 +378,56 @@ function createPortableSnapshot() {
   };
 }
 
+function importPortableSnapshot(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw badRequest('state import payload must be a JSON object');
+  }
+
+  if (payload.__format === 'yoa-state-v2') {
+    if (!payload.state || typeof payload.state !== 'object' || Array.isArray(payload.state)) {
+      throw badRequest('state import payload.state must be an object for yoa-state-v2');
+    }
+    hydrateState(payload.state);
+
+    writeUsage.clear();
+    if (Array.isArray(payload.writeUsageEntries)) {
+      payload.writeUsageEntries.forEach((entry) => {
+        if (Array.isArray(entry) && entry.length === 2 && typeof entry[0] === 'string' && typeof entry[1] === 'number') {
+          writeUsage.set(entry[0], entry[1]);
+        }
+      });
+    }
+
+    auditLogs.length = 0;
+    if (Array.isArray(payload.auditLogs)) {
+      payload.auditLogs.forEach((item) => {
+        if (item && typeof item === 'object' && typeof item.id === 'string') {
+          auditLogs.push(item);
+        }
+      });
+    }
+  } else {
+    hydrateState(payload);
+    writeUsage.clear();
+    auditLogs.length = 0;
+  }
+
+  return {
+    ok: true,
+    importedAt: new Date().toISOString(),
+    counts: {
+      workspaces: state.workspaces.length,
+      documents: state.documents.length,
+      tasks: state.tasks.length,
+      policies: state.policies.length,
+      experts: state.experts.length,
+      policyChangeRequests: state.policyChangeRequests.length
+    },
+    writeUsageEntries: writeUsage.size,
+    auditLogs: auditLogs.length
+  };
+}
+
 function persistStateToDisk() {
   const stateFile = getStateFile();
   if (!stateFile) return;
@@ -483,6 +533,24 @@ async function handleApi(req, res, reqPath, reqUrl) {
   }
 
   if (req.method === 'POST') {
+    if (reqPath === '/api/state/import') {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      const payload = await parseJsonBody(req);
+      const result = importPortableSnapshot(payload);
+      consumeWriteQuota(auth.apiKey);
+      setWriteQuotaHeaders(res, auth.apiKey);
+      pushAuditLog({
+        action: '/api/state/import',
+        method: 'POST',
+        actor: auth.apiKey,
+        targetId: null
+      });
+      persistStateToDisk();
+      sendJson(res, result);
+      return true;
+    }
+
     const creator = POST_ROUTES[reqPath];
     if (!creator) return false;
     const auth = authorizeWriteRequest(req);
@@ -699,5 +767,6 @@ module.exports = {
   resetWriteUsage,
   loadStateFromDisk,
   persistStateToDisk,
-  createPortableSnapshot
+  createPortableSnapshot,
+  importPortableSnapshot
 };
