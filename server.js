@@ -157,6 +157,31 @@ function getWriteQuotaOverview(apiKey) {
   };
 }
 
+function getDashboardSummary(apiKey) {
+  const tasksByStatus = state.tasks.reduce((acc, task) => {
+    acc[task.status] = (acc[task.status] || 0) + 1;
+    return acc;
+  }, {});
+  const documentsByStatus = state.documents.reduce((acc, doc) => {
+    acc[doc.status] = (acc[doc.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    generatedAt: new Date().toISOString(),
+    counts: {
+      workspaces: state.workspaces.length,
+      documents: state.documents.length,
+      tasks: state.tasks.length,
+      policies: state.policies.length,
+      policyChangeRequests: state.policyChangeRequests.length
+    },
+    tasksByStatus,
+    documentsByStatus,
+    writeQuota: getWriteQuotaOverview(apiKey)
+  };
+}
+
 function setWriteQuotaHeaders(res, apiKey) {
   const overview = getWriteQuotaOverview(apiKey);
   res.setHeader('X-Write-Quota-Date', overview.date);
@@ -277,6 +302,14 @@ function serveStaticFile(res, filePath) {
 
 async function handleApi(req, res, reqPath, reqUrl) {
   if (req.method === 'GET') {
+    if (reqPath === '/api/dashboard/summary') {
+      const auth = authorizeWriteRequest(req);
+      if (!auth.ok) throw auth.error;
+      setWriteQuotaHeaders(res, auth.apiKey);
+      sendJson(res, getDashboardSummary(auth.apiKey));
+      return true;
+    }
+
     if (reqPath === '/api/write-usage') {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;

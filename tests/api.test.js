@@ -408,6 +408,32 @@ test('write usage endpoint rejects request without api key', async (t) => {
   });
 });
 
+test('dashboard summary returns aggregated counts and quota', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/dashboard/summary', port, 'GET', null, { 'x-api-key': 'test-write-key' });
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(typeof parsed.generatedAt, 'string');
+    assert.equal(typeof parsed.counts.workspaces, 'number');
+    assert.equal(typeof parsed.counts.documents, 'number');
+    assert.equal(typeof parsed.counts.tasks, 'number');
+    assert.equal(typeof parsed.tasksByStatus.running, 'number');
+    assert.equal(typeof parsed.writeQuota.remaining, 'number');
+    assert.equal(res.headers['x-write-quota-limit'], '3');
+  });
+});
+
+test('dashboard summary rejects request without api key', async (t) => {
+  await withServer(t, async (port) => {
+    const res = await request('/api/dashboard/summary', port);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 401);
+    assert.equal(parsed.error, 'unauthorized: missing or invalid x-api-key');
+  });
+});
+
 test('create and approve policy change request', async (t) => {
   await withServer(t, async (port) => {
     const createRes = await request('/api/policy-change-requests', port, 'POST', {
