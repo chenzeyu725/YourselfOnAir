@@ -881,6 +881,40 @@ test('dashboard summary supports workspace scoped view and completion rate', asy
   });
 });
 
+test('dashboard summary supports recent audit log filtering by action/method/actor', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const wsRes = await request('/api/workspaces', port, 'POST', {
+      name: '筛选审计空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(wsRes.status, 201);
+
+    const taskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '生成审计筛选样本'
+    }, headers);
+    assert.equal(taskRes.status, 201);
+
+    const summaryRes = await request(
+      '/api/dashboard/summary?recentAuditAction=/api/tasks&recentAuditMethod=POST&recentAuditActor=test-write-key&recentAuditLimit=5',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(Array.isArray(summary.recentAuditLogs), true);
+    assert.equal(summary.recentAuditLogs.length, 1);
+    assert.equal(summary.recentAuditLogs[0].action, '/api/tasks');
+    assert.equal(summary.recentAuditLogs[0].method, 'POST');
+    assert.equal(summary.recentAuditLogs[0].actor, 'test-write-key');
+  });
+});
+
 test('dashboard summary returns 400 when workspaceId is invalid', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/dashboard/summary?workspaceId=ws-404', port, 'GET', null, { 'x-api-key': 'test-write-key' });
