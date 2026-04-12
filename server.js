@@ -428,6 +428,24 @@ function importPortableSnapshot(payload) {
   };
 }
 
+function previewPortableImport(payload) {
+  const previousState = getStateSnapshot();
+  const previousWriteUsageEntries = Array.from(writeUsage.entries());
+  const previousAuditLogs = JSON.parse(JSON.stringify(auditLogs));
+  const preview = importPortableSnapshot(payload);
+
+  hydrateState(previousState);
+  writeUsage.clear();
+  previousWriteUsageEntries.forEach((entry) => writeUsage.set(entry[0], entry[1]));
+  auditLogs.length = 0;
+  auditLogs.push(...previousAuditLogs);
+
+  return {
+    ...preview,
+    dryRun: true
+  };
+}
+
 function persistStateToDisk() {
   const stateFile = getStateFile();
   if (!stateFile) return;
@@ -537,16 +555,21 @@ async function handleApi(req, res, reqPath, reqUrl) {
       const auth = authorizeWriteRequest(req);
       if (!auth.ok) throw auth.error;
       const payload = await parseJsonBody(req);
-      const result = importPortableSnapshot(payload);
-      consumeWriteQuota(auth.apiKey);
+      const dryRun = reqUrl.searchParams.get('dryRun') === 'true';
+      const result = dryRun ? previewPortableImport(payload) : importPortableSnapshot(payload);
+      if (!dryRun) {
+        consumeWriteQuota(auth.apiKey);
+      }
       setWriteQuotaHeaders(res, auth.apiKey);
-      pushAuditLog({
-        action: '/api/state/import',
-        method: 'POST',
-        actor: auth.apiKey,
-        targetId: null
-      });
-      persistStateToDisk();
+      if (!dryRun) {
+        pushAuditLog({
+          action: '/api/state/import',
+          method: 'POST',
+          actor: auth.apiKey,
+          targetId: null
+        });
+        persistStateToDisk();
+      }
       sendJson(res, result);
       return true;
     }

@@ -116,6 +116,11 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `X-Write-Quota-Used`
 - `X-Write-Quota-Remaining`
 
+### 状态导入预演（本轮新增）
+
+- `POST /api/state/import?dryRun=true`：执行导入预演，只返回导入结果统计，不会修改当前内存状态。
+- 预演请求同样需要 `x-api-key`，且不会消耗写配额、不会写入审计日志、不会触发持久化落盘。
+
 ### Dashboard 汇总增强（本轮新增）
 
 - `GET /api/dashboard/summary?workspaceId=<id>`：返回指定工作空间视角的 tasks/documents/counts 聚合。

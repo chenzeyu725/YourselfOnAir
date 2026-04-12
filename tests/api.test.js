@@ -734,6 +734,70 @@ test('state import endpoint imports yoa-state-v2 snapshot and keeps quota accoun
   });
 });
 
+test('state import endpoint supports dryRun preview without mutating state/quota/audit logs', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const today = new Date().toISOString().slice(0, 10);
+    const payload = {
+      __format: 'yoa-state-v2',
+      state: {
+        workspaces: [
+          {
+            id: 'ws-888',
+            name: '预览导入工作空间',
+            owner: 'previewer',
+            updatedAt: '2026-04-12',
+            visibility: 'team'
+          }
+        ],
+        documents: [],
+        tasks: [],
+        taskTemplates: [],
+        policies: [],
+        experts: [],
+        policyChangeRequests: [],
+        distillation: {
+          self: {},
+          expert: {},
+          provenance: {}
+        },
+        fusionPreview: {},
+        billing: {}
+      },
+      writeUsageEntries: [[`test-write-key::${today}`, 2]],
+      auditLogs: [
+        {
+          id: 'audit-import-dry-run',
+          createdAt: '2026-04-12T00:00:00.000Z',
+          action: '/dry-run',
+          method: 'POST',
+          actor: 'seed'
+        }
+      ]
+    };
+
+    const previewRes = await request('/api/state/import?dryRun=true', port, 'POST', payload, headers);
+    const preview = JSON.parse(previewRes.body);
+    assert.equal(previewRes.status, 200);
+    assert.equal(preview.ok, true);
+    assert.equal(preview.dryRun, true);
+    assert.equal(preview.counts.workspaces, 1);
+
+    const workspacesRes = await request('/api/workspaces', port);
+    const workspaces = JSON.parse(workspacesRes.body);
+    assert.equal(workspaces.some((item) => item.id === 'ws-888'), false);
+
+    const usageRes = await request('/api/write-usage', port, 'GET', null, headers);
+    const usage = JSON.parse(usageRes.body);
+    assert.equal(usageRes.status, 200);
+    assert.equal(usage.used, 0);
+
+    const logsRes = await request('/api/audit-logs', port);
+    const logs = JSON.parse(logsRes.body);
+    assert.equal(logs.some((item) => item.action === '/api/state/import'), false);
+  });
+});
+
 test('state import endpoint rejects request without api key', async (t) => {
   await withServer(t, async (port) => {
     const res = await request('/api/state/import', port, 'POST', { __format: 'yoa-state-v2', state: {} });
