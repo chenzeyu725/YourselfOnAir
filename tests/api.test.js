@@ -881,6 +881,57 @@ test('dashboard summary supports workspace scoped view and completion rate', asy
   });
 });
 
+
+
+test('dashboard summary supports task/document status filters', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const res = await request(
+      '/api/dashboard/summary?taskStatus=done&documentStatus=indexed',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 200);
+    assert.equal(parsed.scope.taskStatus, 'done');
+    assert.equal(parsed.scope.documentStatus, 'indexed');
+    assert.equal(parsed.counts.tasks, 1);
+    assert.equal(parsed.counts.documents, 2);
+    assert.equal(parsed.tasksByStatus.done, 1);
+    assert.equal(parsed.completionRate, 1);
+  });
+});
+
+test('dashboard summary returns 400 for invalid task/document status filters', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const invalidTaskStatusRes = await request(
+      '/api/dashboard/summary?taskStatus=blocked',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const invalidTaskStatusPayload = JSON.parse(invalidTaskStatusRes.body);
+    assert.equal(invalidTaskStatusRes.status, 400);
+    assert.equal(invalidTaskStatusPayload.error, 'taskStatus must be one of: queued, running, done, failed');
+
+    const invalidDocumentStatusRes = await request(
+      '/api/dashboard/summary?documentStatus=ready',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const invalidDocumentStatusPayload = JSON.parse(invalidDocumentStatusRes.body);
+    assert.equal(invalidDocumentStatusRes.status, 400);
+    assert.equal(invalidDocumentStatusPayload.error, 'documentStatus must be one of: indexed, processing');
+  });
+});
 test('dashboard summary supports recent audit log filtering by action/method/actor', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };
