@@ -45,6 +45,13 @@
 3. 补充自动化测试验证 `recentAuditByTarget` 与其他聚合字段可同时使用。
 4. 更新 README 文档，明确新增返回字段语义。
 
+## 0.6 本轮增量计划（2026-04-12，继续）
+
+1. 为 `GET /api/dashboard/summary` 的审计筛选参数增加多值能力（逗号分隔）。
+2. 支持 `recentAuditAction` / `recentAuditMethod` / `recentAuditActor` / `recentAuditTargetId` 多值并集过滤。
+3. 补充自动化测试覆盖多值筛选与 `scope.recentAudit` 回显行为。
+4. 更新 README 文档，明确多值传参示例。
+
 ## 1. 计划拆分
 
 1. 基线工程初始化（零依赖 Node Web 服务）

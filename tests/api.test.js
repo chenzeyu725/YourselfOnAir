@@ -964,9 +964,9 @@ test('dashboard summary supports recent audit log filtering by action/method/act
     assert.equal(summary.recentAuditLogs[0].method, 'POST');
     assert.equal(summary.recentAuditLogs[0].actor, 'test-write-key');
     assert.equal(summary.scope.recentAudit.limit, 5);
-    assert.equal(summary.scope.recentAudit.action, '/api/tasks');
-    assert.equal(summary.scope.recentAudit.method, 'POST');
-    assert.equal(summary.scope.recentAudit.actor, 'test-write-key');
+    assert.deepEqual(summary.scope.recentAudit.action, ['/api/tasks']);
+    assert.deepEqual(summary.scope.recentAudit.method, ['POST']);
+    assert.deepEqual(summary.scope.recentAudit.actor, ['test-write-key']);
   });
 });
 
@@ -995,6 +995,45 @@ test('dashboard summary supports recent audit log filtering by targetId', async 
     assert.equal(summary.recentAuditLogs.length, 1);
     assert.equal(summary.recentAuditLogs[0].action, '/api/workspaces');
     assert.equal(summary.recentAuditLogs[0].targetId, createdWorkspace.id);
+    assert.deepEqual(summary.scope.recentAudit.targetId, [createdWorkspace.id]);
+  });
+});
+
+test('dashboard summary supports recent audit multi-value filters', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const createdWorkspaceRes = await request('/api/workspaces', port, 'POST', {
+      name: '多值筛选空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(createdWorkspaceRes.status, 201);
+    const createdWorkspace = JSON.parse(createdWorkspaceRes.body);
+
+    const createdTaskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '多值筛选任务'
+    }, headers);
+    assert.equal(createdTaskRes.status, 201);
+    const createdTask = JSON.parse(createdTaskRes.body);
+
+    const summaryRes = await request(
+      `/api/dashboard/summary?recentAuditAction=/api/workspaces,/api/tasks&recentAuditMethod=POST&recentAuditTargetId=${createdWorkspace.id},${createdTask.id}&recentAuditActor=test-write-key&recentAuditLimit=10`,
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(summary.recentAuditLogs.length, 2);
+    assert.deepEqual(summary.scope.recentAudit.action, ['/api/workspaces', '/api/tasks']);
+    assert.deepEqual(summary.scope.recentAudit.method, ['POST']);
+    assert.deepEqual(summary.scope.recentAudit.actor, ['test-write-key']);
+    assert.deepEqual(summary.scope.recentAudit.targetId, [createdWorkspace.id, createdTask.id]);
+    assert.ok(summary.recentAuditByTarget[createdWorkspace.id] >= 1);
+    assert.ok(summary.recentAuditByTarget[createdTask.id] >= 1);
   });
 });
 

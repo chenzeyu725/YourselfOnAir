@@ -127,8 +127,8 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 - `recentAuditLimit`：控制 `recentAuditLogs` 返回条数，默认 `5`，最大 `50`。
 - `taskStatus`：按任务状态过滤 dashboard 的任务统计（可选：`queued` / `running` / `done` / `failed`）。
 - `documentStatus`：按文档状态过滤 dashboard 的文档统计（可选：`indexed` / `processing`）。
-- `recentAuditAction` / `recentAuditMethod` / `recentAuditActor`：按动作、HTTP 方法、调用方过滤 `recentAuditLogs`。
-- `recentAuditTargetId`：按审计日志中的 `targetId` 精确过滤（如某个 `task-xxx` / `ws-xxx`）。
+- `recentAuditAction` / `recentAuditMethod` / `recentAuditActor`：按动作、HTTP 方法、调用方过滤 `recentAuditLogs`（支持逗号分隔多值，如 `recentAuditAction=/api/tasks,/api/workspaces`）。
+- `recentAuditTargetId`：按审计日志中的 `targetId` 精确过滤（如某个 `task-xxx` / `ws-xxx`；支持逗号分隔多值）。
 - `recentAuditDateFrom` / `recentAuditDateTo`：按审计日志 `createdAt` 日期范围过滤（`YYYY-MM-DD`，包含边界日期）。
 - 响应新增字段：
   - `scope.workspaceId` / `scope.taskStatus` / `scope.documentStatus`

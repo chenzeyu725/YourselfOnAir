@@ -102,6 +102,14 @@ function parseDateBoundary(value, field) {
   return parsed;
 }
 
+function parseCsvFilter(value) {
+  if (value === null || value === undefined) return [];
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function applyListQuery(items, query) {
   const q = query.get('q');
   const status = query.get('status');
@@ -225,10 +233,10 @@ function getWriteQuotaOverview(apiKey) {
 function getDashboardSummary(apiKey, options = {}) {
   const workspaceId = options.workspaceId || null;
   const recentAuditLimit = options.recentAuditLimit || 5;
-  const recentAuditAction = options.recentAuditAction || null;
-  const recentAuditMethod = options.recentAuditMethod || null;
-  const recentAuditActor = options.recentAuditActor || null;
-  const recentAuditTargetId = options.recentAuditTargetId || null;
+  const recentAuditAction = options.recentAuditAction || [];
+  const recentAuditMethod = options.recentAuditMethod || [];
+  const recentAuditActor = options.recentAuditActor || [];
+  const recentAuditTargetId = options.recentAuditTargetId || [];
   const recentAuditDateFrom = options.recentAuditDateFrom || null;
   const recentAuditDateTo = options.recentAuditDateTo || null;
   const taskStatus = options.taskStatus || null;
@@ -290,17 +298,17 @@ function getDashboardSummary(apiKey, options = {}) {
   const completionRate = scopedTasks.length === 0 ? null : Number((doneTasks / scopedTasks.length).toFixed(4));
 
   let recentAuditLogs = [...auditLogs];
-  if (recentAuditAction) {
-    recentAuditLogs = recentAuditLogs.filter((item) => item.action === recentAuditAction);
+  if (recentAuditAction.length > 0) {
+    recentAuditLogs = recentAuditLogs.filter((item) => recentAuditAction.includes(item.action));
   }
-  if (recentAuditMethod) {
-    recentAuditLogs = recentAuditLogs.filter((item) => item.method === recentAuditMethod);
+  if (recentAuditMethod.length > 0) {
+    recentAuditLogs = recentAuditLogs.filter((item) => recentAuditMethod.includes(item.method));
   }
-  if (recentAuditActor) {
-    recentAuditLogs = recentAuditLogs.filter((item) => item.actor === recentAuditActor);
+  if (recentAuditActor.length > 0) {
+    recentAuditLogs = recentAuditLogs.filter((item) => recentAuditActor.includes(item.actor));
   }
-  if (recentAuditTargetId) {
-    recentAuditLogs = recentAuditLogs.filter((item) => item.targetId === recentAuditTargetId);
+  if (recentAuditTargetId.length > 0) {
+    recentAuditLogs = recentAuditLogs.filter((item) => recentAuditTargetId.includes(item.targetId));
   }
   if (recentAuditDateFrom || recentAuditDateToInclusiveEnd) {
     recentAuditLogs = recentAuditLogs.filter((item) => {
@@ -619,10 +627,10 @@ async function handleApi(req, res, reqPath, reqUrl) {
       if (!auth.ok) throw auth.error;
       const workspaceId = reqUrl.searchParams.get('workspaceId');
       const recentAuditLimit = parseNonNegativeInt(reqUrl.searchParams.get('recentAuditLimit'), 'recentAuditLimit', 50);
-      const recentAuditAction = reqUrl.searchParams.get('recentAuditAction');
-      const recentAuditMethod = reqUrl.searchParams.get('recentAuditMethod');
-      const recentAuditActor = reqUrl.searchParams.get('recentAuditActor');
-      const recentAuditTargetId = reqUrl.searchParams.get('recentAuditTargetId');
+      const recentAuditAction = parseCsvFilter(reqUrl.searchParams.get('recentAuditAction'));
+      const recentAuditMethod = parseCsvFilter(reqUrl.searchParams.get('recentAuditMethod'));
+      const recentAuditActor = parseCsvFilter(reqUrl.searchParams.get('recentAuditActor'));
+      const recentAuditTargetId = parseCsvFilter(reqUrl.searchParams.get('recentAuditTargetId'));
       const taskStatus = reqUrl.searchParams.get('taskStatus');
       const documentStatus = reqUrl.searchParams.get('documentStatus');
       const recentAuditDateFrom = parseDateBoundary(
