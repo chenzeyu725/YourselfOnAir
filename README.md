@@ -89,6 +89,7 @@ curl "http://localhost:3000/api/tasks?status=running&sortBy=id&order=asc&limit=5
 
 - `WRITE_API_KEY=dev-write-key`
 - `WRITE_QUOTA_PER_DAY=20`（单个 API Key 每日写入上限）
+- `STATE_FILE`（可选，设置后会在每次写操作后将内存状态持久化到该 JSON 文件，并在服务启动时自动加载）
 
 超限会返回 `429 write quota exceeded`。
 
