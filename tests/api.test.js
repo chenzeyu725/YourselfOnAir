@@ -1115,6 +1115,40 @@ test('dashboard summary supports recentAuditOrder=asc', async (t) => {
   });
 });
 
+test('dashboard summary supports recentAuditOffset pagination window', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+
+    const wsRes = await request('/api/workspaces', port, 'POST', {
+      name: '分页窗口空间',
+      owner: 'qa'
+    }, headers);
+    assert.equal(wsRes.status, 201);
+
+    const taskRes = await request('/api/tasks', port, 'POST', {
+      kind: 'analysis',
+      prompt: '分页窗口任务'
+    }, headers);
+    assert.equal(taskRes.status, 201);
+
+    const summaryRes = await request(
+      '/api/dashboard/summary?recentAuditLimit=1&recentAuditOffset=1&recentAuditOrder=desc',
+      port,
+      'GET',
+      null,
+      headers
+    );
+    const summary = JSON.parse(summaryRes.body);
+
+    assert.equal(summaryRes.status, 200);
+    assert.equal(summary.scope.recentAudit.limit, 1);
+    assert.equal(summary.scope.recentAudit.offset, 1);
+    assert.equal(summary.scope.recentAudit.order, 'desc');
+    assert.equal(summary.recentAuditLogs.length, 1);
+    assert.equal(summary.recentAuditLogs[0].action, '/api/workspaces');
+  });
+});
+
 test('dashboard summary supports recent audit log filtering by date range', async (t) => {
   await withServer(t, async (port) => {
     const headers = { 'x-api-key': 'test-write-key' };
@@ -1259,6 +1293,17 @@ test('dashboard summary returns 400 for invalid recentAuditOrder', async (t) => 
 
     assert.equal(res.status, 400);
     assert.equal(parsed.error, 'recentAuditOrder must be asc or desc');
+  });
+});
+
+test('dashboard summary returns 400 for invalid recentAuditOffset', async (t) => {
+  await withServer(t, async (port) => {
+    const headers = { 'x-api-key': 'test-write-key' };
+    const res = await request('/api/dashboard/summary?recentAuditOffset=-1', port, 'GET', null, headers);
+    const parsed = JSON.parse(res.body);
+
+    assert.equal(res.status, 400);
+    assert.equal(parsed.error, 'recentAuditOffset must be a non-negative integer');
   });
 });
 
